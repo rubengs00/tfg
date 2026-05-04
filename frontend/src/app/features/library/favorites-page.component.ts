@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 
 import { LibraryService } from '../../core/library.service';
-import { SpotifyTrack } from '../../core/models';
 import { SongRowComponent } from '../../shared/song-row.component';
 
 @Component({
@@ -15,12 +14,14 @@ import { SongRowComponent } from '../../shared/song-row.component';
         <span class="eyebrow">Tu biblioteca</span>
         <h1>Favoritas</h1>
       </div>
-      <p>Canciones favoritas guardadas como IDs de Spotify en tu cuenta.</p>
+      <p>Todas las canciones favoritas de tu cuenta, siempre sincronizadas con Spotify.</p>
     </section>
 
     <section class="content-section">
-      @if (!tracks().length) {
-        <div class="empty-state">Todavía no has añadido canciones a favoritos.</div>
+      @if (loading()) {
+        <div class="empty-state">Cargando favoritas...</div>
+      } @else if (!tracks().length) {
+        <div class="empty-state">Todavia no has anadido canciones a favoritos.</div>
       } @else {
         <div class="song-list">
           @for (track of tracks(); track track.id; let i = $index) {
@@ -34,9 +35,13 @@ import { SongRowComponent } from '../../shared/song-row.component';
 export class FavoritesPageComponent {
   private readonly library = inject(LibraryService);
 
-  readonly tracks = signal<SpotifyTrack[]>([]);
+  readonly tracks = this.library.favoriteTracks;
+  readonly loading = signal(true);
 
   constructor() {
-    this.library.favorites().subscribe((tracks) => this.tracks.set(tracks));
+    this.library.favorites().subscribe({
+      next: () => this.loading.set(false),
+      error: () => this.loading.set(false),
+    });
   }
 }

@@ -33,15 +33,13 @@ class AuthController extends Controller
             'email' => $data['email'],
             'password' => $data['password'],
             'role' => 'user',
+            'is_active' => true,
             'two_factor_enabled' => false,
         ]);
 
         $this->activity->record($user, 'auth.register', 'user', $user);
 
-        return response()->json([
-            'message' => 'Usuario creado. Verifica el segundo factor para entrar.',
-            ...$this->twoFactorResponse($user),
-        ], 201);
+        return response()->json($this->tokenPayload($user), 201);
     }
 
     public function login(Request $request): JsonResponse
@@ -63,15 +61,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Usuario desactivado.'], 403);
         }
 
-        if ($user->two_factor_enabled) {
-            $this->activity->record($user, 'auth.2fa_requested', 'user', $user);
-
-            return response()->json([
-                'message' => 'Segundo factor requerido.',
-                ...$this->twoFactorResponse($user),
-            ]);
-        }
-
+        $this->activity->record($user, 'auth.login', 'user', $user);
         return response()->json($this->tokenPayload($user));
     }
 

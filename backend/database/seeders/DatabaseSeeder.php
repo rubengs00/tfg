@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
             'password' => 'password',
             'role' => 'admin',
             'avatar_url' => 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=320&q=80',
-            'two_factor_enabled' => true,
+            'two_factor_enabled' => false,
         ]);
 
         $demo = User::query()->create([
@@ -33,7 +33,7 @@ class DatabaseSeeder extends Seeder
             'password' => 'password',
             'role' => 'user',
             'avatar_url' => 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=320&q=80',
-            'two_factor_enabled' => true,
+            'two_factor_enabled' => false,
         ]);
 
         $catalogSource = $this->seedCatalog();
@@ -84,9 +84,16 @@ class DatabaseSeeder extends Seeder
         /** @var SpotifyCatalogService $spotify */
         $spotify = app(SpotifyCatalogService::class);
 
+        if (app()->environment('testing')) {
+            $this->call(DemoCatalogSeeder::class);
+
+            return 'demo';
+        }
+
         if (! $spotify->enabled()) {
-            // No catálogo demo: solo Spotify real
-            return 'spotify-disabled';
+            $this->call(DemoCatalogSeeder::class);
+
+            return 'demo';
         }
 
         try {
@@ -99,7 +106,8 @@ class DatabaseSeeder extends Seeder
             report($exception);
         }
 
-        // Si Spotify falla, no usar catálogo demo
-        return 'spotify-failed';
+        $this->call(DemoCatalogSeeder::class);
+
+        return 'demo';
     }
 }

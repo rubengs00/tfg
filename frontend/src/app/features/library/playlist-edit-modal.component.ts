@@ -103,10 +103,8 @@ export class PlaylistEditModalComponent {
       coverUrl: this.coverPreview(),
     };
 
-    this.loading.set(true);
     // el padre hará la llamada real; aquí solo emitimos.
     this.updated.emit({ playlist: patch, coverFile: this.coverFile() });
-    this.loading.set(false);
 
     this.close();
   }

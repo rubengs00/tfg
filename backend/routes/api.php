@@ -22,14 +22,8 @@ Route::prefix('auth')->group(function (): void {
 
 Route::get('/home', [CatalogController::class, 'home']);
 Route::get('/search', [CatalogController::class, 'search']);
-Route::get('/artists', [CatalogController::class, 'artists']);
-Route::get('/artists/{artist}', [CatalogController::class, 'artist']);
-
-// 🔥 Discover dinámico desde Spotify (no DB)
-Route::get('/spotify/artists/discover', [CatalogController::class, 'discoverArtists']);
-Route::get('/albums', [CatalogController::class, 'albums']);
-Route::get('/albums/{album}', [CatalogController::class, 'album']);
-Route::get('/songs', [CatalogController::class, 'songs']);
+Route::get('/artists/{spotifyId}', [CatalogController::class, 'artist']);
+Route::get('/albums/{spotifyId}', [CatalogController::class, 'album']);
 
 Route::middleware('auth.api')->prefix('me')->group(function (): void {
     Route::get('/profile', [ProfileController::class, 'show']);
@@ -58,5 +52,10 @@ Route::middleware(['auth.api', 'admin'])->prefix('admin')->group(function (): vo
     Route::post('/users', [AdminController::class, 'createUser']);
     Route::patch('/users/{user}', [AdminController::class, 'updateUser']);
     Route::delete('/users/{user}', [AdminController::class, 'deleteUser']);
+    Route::get('/users/{user}/library', [AdminController::class, 'userLibrary']);
+    Route::get('/users/{user}/playlists/{playlist}', [AdminController::class, 'userPlaylist']);
+    Route::delete('/users/{user}/favorites/{spotifyTrackId}', [AdminController::class, 'removeUserFavorite']);
+    Route::delete('/users/{user}/followed-artists/{spotifyArtistId}', [AdminController::class, 'removeUserFollowedArtist']);
+    Route::delete('/users/{user}/playlists/{playlist}', [AdminController::class, 'deleteUserPlaylist']);
     Route::get('/activity', [AdminController::class, 'activity']);
 });

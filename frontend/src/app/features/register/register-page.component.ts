@@ -1,18 +1,23 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { LogIn, LucideAngularModule } from 'lucide-angular';
+import { LucideAngularModule, UserPlus } from 'lucide-angular';
 
 import { AuthService } from '../../core/auth.service';
 
 @Component({
-  selector: 'app-login-page',
+  selector: 'app-register-page',
   imports: [FormsModule, LucideAngularModule, RouterLink],
   template: `
     <section class="auth-layout">
       <form class="auth-panel" (ngSubmit)="submit()">
-        <span class="eyebrow">Acceso</span>
-        <h1>Entrar en MusicHub</h1>
+        <span class="eyebrow">Registro</span>
+        <h1>Crear cuenta</h1>
+
+        <label>
+          Nombre
+          <input name="name" [(ngModel)]="name" autocomplete="name" required />
+        </label>
 
         <label>
           Email
@@ -21,7 +26,18 @@ import { AuthService } from '../../core/auth.service';
 
         <label>
           Password
-          <input name="password" type="password" [(ngModel)]="password" autocomplete="current-password" required />
+          <input name="password" type="password" [(ngModel)]="password" autocomplete="new-password" required />
+        </label>
+
+        <label>
+          Repetir password
+          <input
+            name="passwordConfirm"
+            type="password"
+            [(ngModel)]="passwordConfirm"
+            autocomplete="new-password"
+            required
+          />
         </label>
 
         @if (error()) {
@@ -29,48 +45,46 @@ import { AuthService } from '../../core/auth.service';
         }
 
         <button class="primary-button primary-button--wide" type="submit" [disabled]="loading()">
-          <lucide-icon [img]="icons.LogIn" [size]="18"></lucide-icon>
-          {{ loading() ? 'Entrando...' : 'Entrar' }}
-        </button>
-
-        <button class="ghost-button" type="button" (click)="fillDemo()">
-          Usar demo
+          <lucide-icon [img]="icons.UserPlus" [size]="18"></lucide-icon>
+          {{ loading() ? 'Creando cuenta...' : 'Crear cuenta' }}
         </button>
 
         <p class="hint auth-link">
-          ¿No tienes cuenta? <a routerLink="/register">Crea la tuya</a>
+          ¿Ya tienes cuenta? <a routerLink="/login">Inicia sesion</a>
         </p>
       </form>
     </section>
   `,
 })
-export class LoginPageComponent {
+export class RegisterPageComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  email = 'demo@musichub.local';
-  password = 'password';
+  name = '';
+  email = '';
+  password = '';
+  passwordConfirm = '';
 
   readonly loading = signal(false);
   readonly error = signal('');
-  readonly icons = { LogIn };
+  readonly icons = { UserPlus };
 
   submit(): void {
+    if (this.password !== this.passwordConfirm) {
+      this.error.set('Las passwords no coinciden.');
+      return;
+    }
+
     this.error.set('');
     this.loading.set(true);
 
-    this.auth.login(this.email, this.password).subscribe({
+    this.auth.register(this.name, this.email, this.password).subscribe({
       next: () => void this.router.navigate(['/']),
       error: () => {
-        this.error.set('No se ha podido iniciar sesion.');
+        this.error.set('No se ha podido crear la cuenta.');
         this.loading.set(false);
       },
       complete: () => this.loading.set(false),
     });
-  }
-
-  fillDemo(): void {
-    this.email = 'demo@musichub.local';
-    this.password = 'password';
   }
 }

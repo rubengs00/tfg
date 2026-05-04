@@ -17,6 +17,9 @@ class UserResource extends JsonResource
             'avatarUrl' => $this->avatar_url,
             'twoFactorEnabled' => $this->two_factor_enabled,
             'isActive' => $this->is_active,
+            'playlistsCount' => $this->whenCounted('playlists'),
+            'favoriteSongsCount' => $this->whenCounted('favoriteSongs'),
+            'followedArtistsCount' => $this->whenCounted('followedArtists'),
             'createdAt' => $this->created_at?->toIso8601String(),
         ];
     }

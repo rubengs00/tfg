@@ -41,7 +41,7 @@ export class CatalogService {
 
   artist(id: string) {
     return this.http.get<{
-      artist: SpotifyArtist;
+      artist: SpotifyArtist | null;
       albums: SpotifyAlbum[];
     }>(`${API_BASE_URL}/artists/${id}`);
   }
@@ -52,7 +52,7 @@ export class CatalogService {
 
   album(id: string) {
     return this.http.get<{
-      album: SpotifyAlbum;
+      album: SpotifyAlbum | null;
       tracks: SpotifyTrack[];
     }>(`${API_BASE_URL}/albums/${id}`);
   }

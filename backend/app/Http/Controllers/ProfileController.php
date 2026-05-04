@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\PlaylistResource;
+use App\Http\Resources\UserResource;
 use App\Services\SpotifyCatalogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class ProfileController extends Controller
 {
@@ -17,22 +18,21 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        // ✅ Contadores
         $playlistCount = $user->playlists()->count();
-        $favoriteCount = DB::table('favorite_songs')
-            ->where('user_id', $user->id)
-            ->count();
-
-        $followedCount = DB::table('followed_artists')
-            ->where('user_id', $user->id)
-            ->count();
-
-        // ✅ Favoritos
-        $favoriteIds = DB::table('favorite_songs')
-            ->where('user_id', $user->id)
-            ->pluck('spotify_track_id')
-            ->take(10)
-            ->toArray();
+        $favoriteIds = $user->favoriteSongs()
+            ->whereNotNull('songs.spotify_id')
+            ->orderByDesc('favorite_songs.created_at')
+            ->limit(10)
+            ->pluck('songs.spotify_id')
+            ->values()
+            ->all();
+        $followedIds = $user->followedArtists()
+            ->whereNotNull('artists.spotify_id')
+            ->orderByDesc('followed_artists.created_at')
+            ->limit(10)
+            ->pluck('artists.spotify_id')
+            ->values()
+            ->all();
 
         try {
             $favoriteTracks = $this->spotify->getTracksByIds($favoriteIds);
@@ -40,14 +40,6 @@ class ProfileController extends Controller
             $favoriteTracks = [];
         }
 
-        // ✅ Artistas seguidos
-        $followedIds = DB::table('followed_artists')
-            ->where('user_id', $user->id)
-            ->pluck('spotify_artist_id')
-            ->take(10)
-            ->toArray();
-
-        // Si Spotify no está configurado o devuelve error (403, etc.), no debería tumbar el perfil.
         try {
             $followedArtists = $this->spotify->getArtistsByIds($followedIds);
         } catch (\Throwable $e) {
@@ -55,13 +47,15 @@ class ProfileController extends Controller
         }
 
         return response()->json([
-            'user' => $user,
+            'user' => new UserResource($user),
             'stats' => [
                 'playlists' => $playlistCount,
-                'favorites' => $favoriteCount,
-                'followedArtists' => $followedCount,
+                'favorites' => $user->favoriteSongs()->count(),
+                'followedArtists' => $user->followedArtists()->count(),
             ],
-            'playlists' => $user->playlists()->latest()->limit(8)->get(),
+            'playlists' => PlaylistResource::collection(
+                $user->playlists()->withCount('songs')->latest()->limit(8)->get()
+            ),
             'favoriteTracks' => $favoriteTracks,
             'followedArtists' => $followedArtists,
         ]);
@@ -86,7 +80,7 @@ class ProfileController extends Controller
         $user->save();
 
         return response()->json([
-            'user' => $user,
+            'user' => new UserResource($user),
         ]);
     }
 }

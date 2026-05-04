@@ -20,7 +20,7 @@ import { ProfileService } from '../../core/profile.service';
         <div class="edit-body">
           <div class="edit-image-block">
             <img
-              [src]="avatarPreview() ?? auth.user()?.avatar_url ?? ''"
+              [src]="avatarPreview() ?? auth.user()?.avatarUrl ?? ''"
               class="edit-image"
             />
             <label class="image-picker">
@@ -75,7 +75,7 @@ export class ProfileEditModalComponent {
       if (current) {
         this.auth.updateUser({
           ...current,
-          avatar_url: preview,
+          avatarUrl: preview,
         });
       }
     };
@@ -111,7 +111,7 @@ export class ProfileEditModalComponent {
         if (response.user) {
           this.auth.updateUser({
             ...response.user,
-            avatar_url: response.user.avatar_url ? response.user.avatar_url + '?v=' + Date.now() : null,
+            avatarUrl: response.user.avatarUrl ? response.user.avatarUrl + '?v=' + Date.now() : null,
           });
         }
         this.close();
@@ -131,7 +131,7 @@ export class ProfileEditModalComponent {
     const user = this.auth.user();
     if (user) {
       this.name.set(user.name ?? '');
-      this.avatarPreview.set(user.avatar_url ?? null);
+      this.avatarPreview.set(user.avatarUrl ?? null);
     }
   }
 

@@ -46,8 +46,8 @@
       <div class="topbar__actions">
         @if (auth.user(); as user) {
           <a class="user-chip" routerLink="/profile">
-            @if (user.avatar_url) {
-              <img [src]="user.avatar_url" [alt]="user.name" />
+            @if (user.avatarUrl) {
+              <img [src]="user.avatarUrl" [alt]="user.name" />
             }
             <span>{{ user.name }}</span>
           </a>
@@ -55,6 +55,7 @@
             <lucide-icon [img]="icons.LogOut" [size]="18"></lucide-icon>
           </button>
         } @else {
+          <a class="ghost-button" routerLink="/register">Registro</a>
           <a class="primary-button" routerLink="/login">
             <lucide-icon [img]="icons.LogIn" [size]="18"></lucide-icon>
             Login

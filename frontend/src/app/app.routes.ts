@@ -8,6 +8,7 @@ import { HomePageComponent } from './features/home/home-page.component';
 import { FavoritesPageComponent } from './features/library/favorites-page.component';
 import { PlaylistsPageComponent } from './features/library/playlists-page.component';
 import { LoginPageComponent } from './features/login/login-page.component';
+import { RegisterPageComponent } from './features/register/register-page.component';
 import { ProfilePageComponent } from './features/profile/profile-page.component';
 
 export const routes: Routes = [
@@ -19,5 +20,6 @@ export const routes: Routes = [
   { path: 'profile', component: ProfilePageComponent, canActivate: [authGuard], title: 'Perfil | MusicHub' },
   { path: 'admin', component: AdminPageComponent, canActivate: [authGuard, adminGuard], title: 'Admin | MusicHub' },
   { path: 'login', component: LoginPageComponent, title: 'Login | MusicHub' },
+  { path: 'register', component: RegisterPageComponent, title: 'Registro | MusicHub' },
   { path: '**', redirectTo: '' },
 ];

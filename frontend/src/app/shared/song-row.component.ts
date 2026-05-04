@@ -1,4 +1,4 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Heart, LucideAngularModule, Play, Plus, Volume2, VolumeX } from 'lucide-angular';
 
@@ -102,14 +102,19 @@ export class SongRowComponent {
   readonly playlists = signal<{ id: number; name: string }[]>([]);
   readonly icons = { Heart, Play, Plus, Volume2, VolumeX };
 
+  readonly isFavorite = computed(() => this.library.favoriteTrackIds().includes(this.track().id));
+
   constructor() {
-    if (this.auth.isLoggedIn()) {
+    effect(() => {
+      if (!this.auth.isLoggedIn()) {
+        this.playlists.set([]);
+        return;
+      }
+
       this.library.playlists().subscribe((items) => {
         this.playlists.set(items.map((p) => ({ id: p.id, name: p.name })));
       });
-
-      this.library.favorites().subscribe();
-    }
+    });
   }
 
   indexLabel(): string {
@@ -144,12 +149,13 @@ export class SongRowComponent {
     request.subscribe();
   }
 
-  isFavorite(): boolean {
-    return this.library.favoriteTrackIds().includes(this.track().id);
-  }
-
   addToPlaylist(playlistId: number): void {
-    if (!this.auth.isLoggedIn() || this.addingLoading()) return;
+    if (!this.auth.isLoggedIn()) {
+      void this.router.navigate(['/login']);
+      return;
+    }
+
+    if (this.addingLoading()) return;
 
     this.addingLoading.set(true);
 

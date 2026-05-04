@@ -2,40 +2,17 @@
 
 namespace App\Services;
 
-use Illuminate\Http\Client\ConnectionException;
+use App\Models\Album;
+use App\Models\Artist;
+use App\Models\Song;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class SpotifyCatalogService
 {
-    private function fallbackCurlGetJson(string $url, array $query = []): array
-    {
-        $token = $this->token();
-
-        $qs = $query ? ('?' . http_build_query($query)) : '';
-        $fullUrl = $url . $qs;
-
-        $curl = (string) config('services.spotify.curl_path', 'curl');
-        // Usamos curl.exe del sistema como workaround cuando PHP cURL/Guzzle falla en Windows.
-        // -s: silent, -L: follow redirects, -H: headers
-        $cmd = '"' . $curl . '" -s -L '
-            . '-H "Accept: application/json" '
-            . '-H "Authorization: Bearer ' . $token . '" '
-            . '"' . $fullUrl . '"';
-
-        $out = @shell_exec($cmd);
-        if (!is_string($out) || trim($out) === '') {
-            return [];
-        }
-
-        $decoded = json_decode($out, true);
-        return is_array($decoded) ? $decoded : [];
-    }
-    /* =====================================================
-     |  CORE CONFIG
-     ===================================================== */
-
     public function enabled(): bool
     {
         return (bool) config('services.spotify.client_id')
@@ -49,11 +26,16 @@ class SpotifyCatalogService
 
     public function token(): string
     {
+        if (! $this->enabled()) {
+            throw new RuntimeException('Spotify no esta configurado.');
+        }
+
         return Cache::remember('spotify_access_token', 3300, function (): string {
-            $response = Http::asForm()
+            $response = $this->baseHttp()
+                ->asForm()
                 ->withBasicAuth(
-                    config('services.spotify.client_id'),
-                    config('services.spotify.client_secret')
+                    (string) config('services.spotify.client_id'),
+                    (string) config('services.spotify.client_secret')
                 )
                 ->post('https://accounts.spotify.com/api/token', [
                     'grant_type' => 'client_credentials',
@@ -61,35 +43,15 @@ class SpotifyCatalogService
                 ->throw()
                 ->json();
 
-            return $response['access_token'];
+            $token = $response['access_token'] ?? null;
+
+            if (! is_string($token) || $token === '') {
+                throw new RuntimeException('Spotify no ha devuelto un access token valido.');
+            }
+
+            return $token;
         });
     }
-
-    private function http()
-    {
-        $http = Http::withToken($this->token())
-            ->acceptJson()
-            ->withOptions([
-                // Windows/Laragon a veces falla resolviendo IPv6 y lanza ConnectionException.
-                // Forzamos IPv4 para Spotify.
-                'curl' => [
-                    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
-                ],
-            ]);
-
-        // En algunos entornos Windows/Laragon, PHP cURL/OpenSSL no tiene CA bundle configurado
-        // y las llamadas HTTPS a Spotify fallan con ConnectionException.
-        // Permite saltar la verificación SOLO si se define en .env.
-        if (config('services.spotify.skip_ssl_verify', false)) {
-            $http = $http->withoutVerifying();
-        }
-
-        return $http;
-    }
-
-    /* =====================================================
-     |  SEARCH
-     ===================================================== */
 
     public function search(string $query): array
     {
@@ -101,39 +63,15 @@ class SpotifyCatalogService
             ];
         }
 
-        $paramsArtist = [
+        $baseParams = [
             'q' => $query,
-            'type' => 'artist',
             'limit' => 10,
             'market' => $this->market(),
         ];
 
-        $paramsAlbum = [
-            'q' => $query,
-            'type' => 'album',
-            'limit' => 10,
-            'market' => $this->market(),
-        ];
-
-        $paramsTrack = [
-            'q' => $query,
-            'type' => 'track',
-            'limit' => 10,
-            'market' => $this->market(),
-        ];
-
-        try {
-            $http = $this->http();
-
-            $artistResponse = $http->get('https://api.spotify.com/v1/search', $paramsArtist)->throw()->json();
-            $albumResponse = $http->get('https://api.spotify.com/v1/search', $paramsAlbum)->throw()->json();
-            $trackResponse = $http->get('https://api.spotify.com/v1/search', $paramsTrack)->throw()->json();
-        } catch (ConnectionException $e) {
-            // Workaround Windows/Laragon: usar curl.exe si Guzzle no conecta
-            $artistResponse = $this->fallbackCurlGetJson('https://api.spotify.com/v1/search', $paramsArtist);
-            $albumResponse = $this->fallbackCurlGetJson('https://api.spotify.com/v1/search', $paramsAlbum);
-            $trackResponse = $this->fallbackCurlGetJson('https://api.spotify.com/v1/search', $paramsTrack);
-        }
+        $artistResponse = $this->spotifyGet('/v1/search', [...$baseParams, 'type' => 'artist']);
+        $albumResponse = $this->spotifyGet('/v1/search', [...$baseParams, 'type' => 'album']);
+        $trackResponse = $this->spotifyGet('/v1/search', [...$baseParams, 'type' => 'track']);
 
         return [
             'artists' => $artistResponse['artists']['items'] ?? [],
@@ -142,135 +80,431 @@ class SpotifyCatalogService
         ];
     }
 
-    /* =====================================================
-     |  ARTISTS
-     ===================================================== */
-
-    public function getArtist(string $id): array
+    public function getArtist(string $spotifyArtistId): array
     {
         if (! $this->enabled()) {
             return [];
         }
 
-        return Cache::remember("spotify:artist:{$id}", 3600, function () use ($id) {
-            try {
-                return $this->http()
-                    ->get("https://api.spotify.com/v1/artists/{$id}", [
-                        'market' => $this->market(),
-                    ])
-                    ->throw()
-                    ->json();
-            } catch (ConnectionException $e) {
-                return $this->fallbackCurlGetJson("https://api.spotify.com/v1/artists/{$id}", [
-                    'market' => $this->market(),
-                ]);
-            }
-        });
+        return Cache::remember("spotify:artist:{$spotifyArtistId}", 3600, fn (): array => $this->spotifyGet(
+            "/v1/artists/{$spotifyArtistId}",
+            ['market' => $this->market()]
+        ));
     }
 
-    public function getArtistsByIds(array $ids): array
+    public function getArtistsByIds(array $spotifyArtistIds): array
     {
         if (! $this->enabled()) {
             return [];
         }
 
-        $ids = array_values(array_unique(array_filter($ids)));
-        if (empty($ids)) {
+        $spotifyArtistIds = array_values(array_unique(array_filter($spotifyArtistIds)));
+
+        if ($spotifyArtistIds === []) {
             return [];
         }
 
-        $cacheKey = 'spotify:artists:' . md5(implode(',', $ids));
+        $artists = [];
 
-        return Cache::remember($cacheKey, 1800, function () use ($ids) {
-            $response = $this->http()
-                ->get('https://api.spotify.com/v1/artists', [
-                    'ids' => implode(',', $ids),
-                ])
-                ->throw()
-                ->json();
+        foreach (array_chunk($spotifyArtistIds, 50) as $chunk) {
+            $cacheKey = 'spotify:artists:' . md5(implode(',', $chunk));
 
-            return $response['artists'] ?? [];
-        });
+            $response = Cache::remember($cacheKey, 1800, fn (): array => $this->spotifyGet('/v1/artists', [
+                'ids' => implode(',', $chunk),
+            ]));
+
+            foreach ($response['artists'] ?? [] as $artist) {
+                if (is_array($artist)) {
+                    $artists[] = $artist;
+                }
+            }
+        }
+
+        return $artists;
     }
 
-    public function getArtistAlbums(string $id): array
+    public function getArtistAlbums(string $spotifyArtistId, int $limit = 10): array
     {
         if (! $this->enabled()) {
             return [];
         }
 
-        return Cache::remember("spotify:artist:{$id}:albums", 3600, function () use ($id) {
-            try {
-                $response = $this->http()
-                    ->get("https://api.spotify.com/v1/artists/{$id}/albums", [
-                        'include_groups' => 'album,single',
-                        'limit' => 50,
-                        'market' => $this->market(),
-                    ])
-                    ->throw()
-                    ->json();
-            } catch (ConnectionException $e) {
-                $response = $this->fallbackCurlGetJson("https://api.spotify.com/v1/artists/{$id}/albums", [
-                    'include_groups' => 'album,single',
-                    'limit' => 50,
-                    'market' => $this->market(),
-                ]);
-            }
+        return Cache::remember("spotify:artist:{$spotifyArtistId}:albums:{$limit}", 3600, function () use ($spotifyArtistId, $limit): array {
+            $response = $this->spotifyGet("/v1/artists/{$spotifyArtistId}/albums", [
+                'include_groups' => 'album,single',
+                'limit' => max(1, min($limit, 10)),
+                'market' => $this->market(),
+            ]);
 
             return $response['items'] ?? [];
         });
     }
 
-    /* =====================================================
-     |  ALBUMS
-     ===================================================== */
-
-    public function getAlbum(string $id): array
+    public function getAlbum(string $spotifyAlbumId): array
     {
-        return Cache::remember("spotify:album:{$id}", 3600, function () use ($id) {
-            return $this->http()
-                ->get("https://api.spotify.com/v1/albums/{$id}")
-                ->throw()
-                ->json();
-        });
+        if (! $this->enabled()) {
+            return [];
+        }
+
+        return Cache::remember("spotify:album:{$spotifyAlbumId}", 3600, fn (): array => $this->spotifyGet(
+            "/v1/albums/{$spotifyAlbumId}",
+            ['market' => $this->market()]
+        ));
     }
 
-    public function getAlbumTracks(string $id): array
+    public function getAlbumTracks(string $spotifyAlbumId): array
     {
-        return Cache::remember("spotify:album:{$id}:tracks", 3600, function () use ($id) {
-            $response = $this->http()
-                ->get("https://api.spotify.com/v1/albums/{$id}/tracks", [
-                    'limit' => 50,
-                    'market' => $this->market(),
-                ])
-                ->throw()
-                ->json();
+        if (! $this->enabled()) {
+            return [];
+        }
+
+        return Cache::remember("spotify:album:{$spotifyAlbumId}:tracks", 3600, function () use ($spotifyAlbumId): array {
+            $response = $this->spotifyGet("/v1/albums/{$spotifyAlbumId}/tracks", [
+                'limit' => 50,
+                'market' => $this->market(),
+            ]);
 
             return $response['items'] ?? [];
         });
     }
 
-    /* =====================================================
-     |  TRACKS
-     ===================================================== */
-
-    public function getTracksByIds(array $ids): array
+    public function getTrack(string $spotifyTrackId): array
     {
-        $ids = array_unique($ids);
-        if (empty($ids)) return [];
+        if (! $this->enabled()) {
+            return [];
+        }
 
-        $cacheKey = 'spotify:tracks:' . md5(implode(',', $ids));
+        return Cache::remember("spotify:track:{$spotifyTrackId}", 3600, fn (): array => $this->spotifyGet(
+            "/v1/tracks/{$spotifyTrackId}",
+            ['market' => $this->market()]
+        ));
+    }
 
-        return Cache::remember($cacheKey, 1800, function () use ($ids) {
-            $response = $this->http()
-                ->get('https://api.spotify.com/v1/tracks', [
-                    'ids' => implode(',', $ids),
-                    'market' => $this->market(),
-                ])
-                ->throw()
-                ->json();
+    public function getTracksByIds(array $spotifyTrackIds): array
+    {
+        if (! $this->enabled()) {
+            return [];
+        }
 
-            return $response['tracks'] ?? [];
-        });
+        $spotifyTrackIds = array_values(array_unique(array_filter($spotifyTrackIds)));
+
+        if ($spotifyTrackIds === []) {
+            return [];
+        }
+
+        $tracks = [];
+
+        foreach (array_chunk($spotifyTrackIds, 50) as $chunk) {
+            $cacheKey = 'spotify:tracks:' . md5(implode(',', $chunk));
+
+            $response = Cache::remember($cacheKey, 1800, fn (): array => $this->spotifyGet('/v1/tracks', [
+                'ids' => implode(',', $chunk),
+                'market' => $this->market(),
+            ]));
+
+            foreach ($response['tracks'] ?? [] as $track) {
+                if (is_array($track)) {
+                    $tracks[] = $track;
+                }
+            }
+        }
+
+        return $tracks;
+    }
+
+    public function syncSeedCatalog(?array $artistSeeds = null, int $albumsPerArtist = 3): array
+    {
+        if (! $this->enabled()) {
+            return ['artists' => 0, 'albums' => 0, 'songs' => 0];
+        }
+
+        $artistSeeds = collect($artistSeeds ?: config('services.spotify.seed_artists', []))
+            ->map(fn (mixed $seed): string => trim((string) $seed))
+            ->filter()
+            ->values()
+            ->all();
+
+        $importedArtists = [];
+        $importedAlbums = [];
+        $importedSongs = [];
+
+        foreach ($artistSeeds as $seed) {
+            $spotifyArtistId = $this->resolveArtistId($seed);
+
+            if (! $spotifyArtistId) {
+                continue;
+            }
+
+            $artist = $this->syncArtistBySpotifyId($spotifyArtistId);
+
+            if (! $artist) {
+                continue;
+            }
+
+            $importedArtists[$artist->id] = true;
+
+            $albums = array_slice(
+                $this->getArtistAlbums($spotifyArtistId, max(1, $albumsPerArtist)),
+                0,
+                max(1, $albumsPerArtist)
+            );
+
+            foreach ($albums as $albumSummary) {
+                $spotifyAlbumId = $albumSummary['id'] ?? null;
+
+                if (! is_string($spotifyAlbumId) || $spotifyAlbumId === '') {
+                    continue;
+                }
+
+                $album = $this->syncAlbumBySpotifyId($spotifyAlbumId, $artist);
+
+                if (! $album) {
+                    continue;
+                }
+
+                $importedAlbums[$album->id] = true;
+
+                foreach ($this->getAlbumTracks($spotifyAlbumId) as $trackData) {
+                    $song = $this->upsertTrackFromSpotify($trackData, $album);
+
+                    if ($song) {
+                        $importedSongs[$song->id] = true;
+                    }
+                }
+            }
+        }
+
+        return [
+            'artists' => count($importedArtists),
+            'albums' => count($importedAlbums),
+            'songs' => count($importedSongs),
+        ];
+    }
+
+    public function syncArtistBySpotifyId(string $spotifyArtistId): ?Artist
+    {
+        $artistData = $this->getArtist($spotifyArtistId);
+
+        if ($artistData === []) {
+            return null;
+        }
+
+        $artist = Artist::query()->firstOrNew(['spotify_id' => $spotifyArtistId]);
+
+        $artist->fill([
+            'name' => $artistData['name'] ?? $artist->name ?? 'Artista',
+            'slug' => $artist->slug ?: $this->buildSlug($artistData['name'] ?? 'artist', $spotifyArtistId),
+            'genre' => $artistData['genres'][0] ?? null,
+            'followers' => (int) ($artistData['followers']['total'] ?? 0),
+            'image_url' => $artistData['images'][0]['url'] ?? null,
+            'popularity' => (int) ($artistData['popularity'] ?? 0),
+        ]);
+
+        $artist->save();
+
+        return $artist;
+    }
+
+    public function syncAlbumBySpotifyId(string $spotifyAlbumId, ?Artist $artist = null): ?Album
+    {
+        $albumData = $this->getAlbum($spotifyAlbumId);
+
+        if ($albumData === []) {
+            return null;
+        }
+
+        $spotifyArtistId = $artist?->spotify_id
+            ?? ($albumData['artists'][0]['id'] ?? null);
+
+        if (! $artist && is_string($spotifyArtistId) && $spotifyArtistId !== '') {
+            $artist = $this->syncArtistBySpotifyId($spotifyArtistId);
+        }
+
+        if (! $artist) {
+            return null;
+        }
+
+        $album = Album::query()->firstOrNew(['spotify_id' => $spotifyAlbumId]);
+
+        $album->fill([
+            'artist_id' => $artist->id,
+            'title' => $albumData['name'] ?? $album->title ?? 'Album',
+            'slug' => $album->slug ?: $this->buildSlug(($artist->name ?? 'album') . ' ' . ($albumData['name'] ?? 'album'), $spotifyAlbumId),
+            'cover_url' => $albumData['images'][0]['url'] ?? null,
+            'release_year' => $this->releaseYear($albumData['release_date'] ?? null),
+            'total_tracks' => (int) ($albumData['total_tracks'] ?? 0),
+        ]);
+
+        $album->save();
+
+        return $album;
+    }
+
+    public function syncTrackBySpotifyId(string $spotifyTrackId): ?Song
+    {
+        $trackData = $this->getTrack($spotifyTrackId);
+
+        if ($trackData === []) {
+            return null;
+        }
+
+        return $this->upsertTrackFromSpotify($trackData);
+    }
+
+    private function upsertTrackFromSpotify(array $trackData, ?Album $album = null): ?Song
+    {
+        $spotifyTrackId = $trackData['id'] ?? null;
+
+        if (! is_string($spotifyTrackId) || $spotifyTrackId === '') {
+            return null;
+        }
+
+        $spotifyAlbumId = $album?->spotify_id
+            ?? ($trackData['album']['id'] ?? null);
+
+        if (! $album && is_string($spotifyAlbumId) && $spotifyAlbumId !== '') {
+            $album = $this->syncAlbumBySpotifyId($spotifyAlbumId);
+        }
+
+        if (! $album) {
+            return null;
+        }
+
+        $song = Song::query()->firstOrNew(['spotify_id' => $spotifyTrackId]);
+
+        $song->fill([
+            'album_id' => $album->id,
+            'title' => $trackData['name'] ?? $song->title ?? 'Cancion',
+            'duration_seconds' => max(0, (int) round(((int) ($trackData['duration_ms'] ?? 0)) / 1000)),
+            'preview_url' => $trackData['preview_url'] ?? null,
+            'track_number' => max(1, (int) ($trackData['track_number'] ?? 1)),
+            'explicit' => (bool) ($trackData['explicit'] ?? false),
+            'popularity' => (int) ($trackData['popularity'] ?? 0),
+        ]);
+
+        $song->save();
+
+        return $song;
+    }
+
+    private function resolveArtistId(string $value): ?string
+    {
+        if ($this->looksLikeSpotifyId($value)) {
+            return $value;
+        }
+
+        $response = $this->spotifyGet('/v1/search', [
+            'q' => $value,
+            'type' => 'artist',
+            'limit' => 1,
+            'market' => $this->market(),
+        ]);
+
+        $artistId = $response['artists']['items'][0]['id'] ?? null;
+
+        return is_string($artistId) && $artistId !== '' ? $artistId : null;
+    }
+
+    private function spotifyGet(string $path, array $query = []): array
+    {
+        return $this->spotifyHttp()
+            ->get($path, $query)
+            ->throw()
+            ->json();
+    }
+
+    private function spotifyHttp(): PendingRequest
+    {
+        return $this->baseHttp()
+            ->baseUrl('https://api.spotify.com')
+            ->withToken($this->token());
+    }
+
+    private function baseHttp(): PendingRequest
+    {
+        return Http::acceptJson()
+            ->withHeaders([
+                'User-Agent' => 'MusicHub/1.0',
+            ])
+            ->withOptions($this->httpOptions());
+    }
+
+    private function httpOptions(): array
+    {
+        if (app()->environment('testing')) {
+            return [];
+        }
+
+        $options = [
+            'connect_timeout' => 12,
+            'timeout' => 20,
+            'force_ip_resolve' => 'v4',
+        ];
+
+        if ((bool) config('services.spotify.skip_ssl_verify', false)) {
+            $options['verify'] = false;
+
+            return $options;
+        }
+
+        $caBundle = $this->resolveCaBundle();
+
+        if ($caBundle !== null) {
+            $options['verify'] = $caBundle;
+        }
+
+        return $options;
+    }
+
+    private function resolveCaBundle(): ?string
+    {
+        $configured = trim((string) config('services.spotify.ca_bundle', ''));
+
+        if ($configured !== '' && is_file($configured)) {
+            return $configured;
+        }
+
+        $iniBundle = trim((string) ini_get('openssl.cafile'));
+
+        if ($iniBundle !== '' && is_file($iniBundle)) {
+            return $iniBundle;
+        }
+
+        foreach ($this->commonWindowsCaBundles() as $path) {
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
+    private function commonWindowsCaBundles(): array
+    {
+        return [
+            'C:\\Program Files\\Git\\usr\\ssl\\certs\\ca-bundle.crt',
+            'C:\\Program Files\\Git\\usr\\ssl\\cert.pem',
+            'C:\\Program Files\\Git\\mingw64\\ssl\\certs\\ca-bundle.crt',
+            'C:\\Program Files\\Git\\mingw64\\ssl\\cert.pem',
+        ];
+    }
+
+    private function looksLikeSpotifyId(string $value): bool
+    {
+        return (bool) preg_match('/^[A-Za-z0-9]{22}$/', $value);
+    }
+
+    private function buildSlug(string $label, string $spotifyId): string
+    {
+        return Str::slug($label) . '-' . Str::lower(substr($spotifyId, -6));
+    }
+
+    private function releaseYear(mixed $releaseDate): ?int
+    {
+        if (! is_string($releaseDate) || strlen($releaseDate) < 4) {
+            return null;
+        }
+
+        return (int) substr($releaseDate, 0, 4);
     }
 }

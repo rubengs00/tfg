@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\PlaylistResource;
+use App\Models\Artist;
 use App\Models\Playlist;
+use App\Models\Song;
 use App\Services\SpotifyCatalogService;
 use App\Support\ActivityLogger;
 use Illuminate\Http\JsonResponse;
@@ -14,21 +17,22 @@ class LibraryController extends Controller
     public function __construct(
         private readonly SpotifyCatalogService $spotify,
         private readonly ActivityLogger $activity
-    ) {}
-
-    /* =====================================================
-     |  FAVORITES (Spotify IDs only)
-     ===================================================== */
+    ) {
+    }
 
     public function favorites(Request $request): JsonResponse
     {
-        // Spotify-first: persistimos IDs de Spotify en la tabla favorite_songs (columna spotify_track_id)
-        $ids = DB::table('favorite_songs')
-            ->where('user_id', $request->user()->id)
-            ->pluck('spotify_track_id')
-            ->toArray();
+        $spotifyTrackIds = Song::query()
+            ->select('songs.spotify_id')
+            ->join('favorite_songs', 'favorite_songs.song_id', '=', 'songs.id')
+            ->where('favorite_songs.user_id', $request->user()->id)
+            ->orderByDesc('favorite_songs.created_at')
+            ->pluck('songs.spotify_id')
+            ->filter()
+            ->values()
+            ->all();
 
-        $tracks = $this->spotify->getTracksByIds($ids);
+        $tracks = $this->safeTracksByIds($spotifyTrackIds);
 
         return response()->json([
             'tracks' => $tracks,
@@ -41,10 +45,16 @@ class LibraryController extends Controller
             'spotifyTrackId' => ['required', 'string'],
         ]);
 
+        $song = $this->spotify->syncTrackBySpotifyId($data['spotifyTrackId']);
+
+        if (! $song) {
+            return response()->json(['message' => 'No se ha podido guardar la cancion.'], 422);
+        }
+
         DB::table('favorite_songs')->updateOrInsert(
             [
                 'user_id' => $request->user()->id,
-                'spotify_track_id' => $data['spotifyTrackId'],
+                'song_id' => $song->id,
             ],
             [
                 'created_at' => now(),
@@ -52,9 +62,9 @@ class LibraryController extends Controller
             ]
         );
 
-        $this->activity->record($request->user(), 'song.favorite_added');
+        $this->activity->record($request->user(), 'song.favorite_added', 'song', $song);
 
-        return response()->json(['message' => 'Canción añadida a favoritos.']);
+        return response()->json(['message' => 'Cancion anadida a favoritos.']);
     }
 
     public function removeFavorite(Request $request): JsonResponse
@@ -63,28 +73,33 @@ class LibraryController extends Controller
             'spotifyTrackId' => ['required', 'string'],
         ]);
 
-        DB::table('favorite_songs')
-            ->where('user_id', $request->user()->id)
-            ->where('spotify_track_id', $data['spotifyTrackId'])
-            ->delete();
+        $song = Song::query()->where('spotify_id', $data['spotifyTrackId'])->first();
 
-        $this->activity->record($request->user(), 'song.favorite_removed');
+        if ($song) {
+            DB::table('favorite_songs')
+                ->where('user_id', $request->user()->id)
+                ->where('song_id', $song->id)
+                ->delete();
+        }
 
-        return response()->json(['message' => 'Canción eliminada de favoritos.']);
+        $this->activity->record($request->user(), 'song.favorite_removed', 'song', $song);
+
+        return response()->json(['message' => 'Cancion eliminada de favoritos.']);
     }
-
-    /* =====================================================
-     |  FOLLOWED ARTISTS
-     ===================================================== */
 
     public function followedArtists(Request $request): JsonResponse
     {
-        $ids = DB::table('followed_artists')
-            ->where('user_id', $request->user()->id)
-            ->pluck('spotify_artist_id')
-            ->toArray();
+        $spotifyArtistIds = Artist::query()
+            ->select('artists.spotify_id')
+            ->join('followed_artists', 'followed_artists.artist_id', '=', 'artists.id')
+            ->where('followed_artists.user_id', $request->user()->id)
+            ->orderByDesc('followed_artists.created_at')
+            ->pluck('artists.spotify_id')
+            ->filter()
+            ->values()
+            ->all();
 
-        $artists = $this->spotify->getArtistsByIds($ids);
+        $artists = $this->safeArtistsByIds($spotifyArtistIds);
 
         return response()->json([
             'artists' => $artists,
@@ -97,17 +112,24 @@ class LibraryController extends Controller
             'spotifyArtistId' => ['required', 'string'],
         ]);
 
+        $artist = $this->spotify->syncArtistBySpotifyId($data['spotifyArtistId']);
+
+        if (! $artist) {
+            return response()->json(['message' => 'No se ha podido seguir al artista.'], 422);
+        }
+
         DB::table('followed_artists')->updateOrInsert(
             [
                 'user_id' => $request->user()->id,
-                'spotify_artist_id' => $data['spotifyArtistId'],
+                'artist_id' => $artist->id,
             ],
             [
                 'created_at' => now(),
+                'updated_at' => now(),
             ]
         );
 
-        $this->activity->record($request->user(), 'artist.followed');
+        $this->activity->record($request->user(), 'artist.followed', 'artist', $artist);
 
         return response()->json(['message' => 'Artista seguido.']);
     }
@@ -118,24 +140,30 @@ class LibraryController extends Controller
             'spotifyArtistId' => ['required', 'string'],
         ]);
 
-        DB::table('followed_artists')
-            ->where('user_id', $request->user()->id)
-            ->where('spotify_artist_id', $data['spotifyArtistId'])
-            ->delete();
+        $artist = Artist::query()->where('spotify_id', $data['spotifyArtistId'])->first();
 
-        $this->activity->record($request->user(), 'artist.unfollowed');
+        if ($artist) {
+            DB::table('followed_artists')
+                ->where('user_id', $request->user()->id)
+                ->where('artist_id', $artist->id)
+                ->delete();
+        }
+
+        $this->activity->record($request->user(), 'artist.unfollowed', 'artist', $artist);
 
         return response()->json(['message' => 'Has dejado de seguir al artista.']);
     }
 
-    /* =====================================================
-     |  PLAYLISTS
-     ===================================================== */
-
     public function playlists(Request $request): JsonResponse
     {
+        $playlists = $request->user()
+            ->playlists()
+            ->withCount('songs')
+            ->latest()
+            ->get();
+
         return response()->json([
-            'playlists' => $request->user()->playlists()->latest()->get(),
+            'playlists' => PlaylistResource::collection($playlists),
         ]);
     }
 
@@ -147,28 +175,72 @@ class LibraryController extends Controller
         ]);
 
         $playlist = $request->user()->playlists()->create($data);
+        $playlist->loadCount('songs');
 
-        $this->activity->record($request->user(), 'playlist.created');
+        $this->activity->record($request->user(), 'playlist.created', 'playlist', $playlist);
 
-        return response()->json(['playlist' => $playlist], 201);
+        return response()->json(['playlist' => new PlaylistResource($playlist)], 201);
     }
 
     public function playlist(Request $request, Playlist $playlist): JsonResponse
     {
         $this->authorizePlaylist($request, $playlist);
 
-        $ids = DB::table('playlist_tracks')
-            ->where('playlist_id', $playlist->id)
-            ->orderBy('position')
-            ->pluck('spotify_track_id')
-            ->toArray();
+        $playlist->loadCount('songs');
 
-        $tracks = $this->spotify->getTracksByIds($ids);
+        $spotifyTrackIds = $playlist->songs()
+            ->orderBy('playlist_song.position')
+            ->pluck('songs.spotify_id')
+            ->filter()
+            ->values()
+            ->all();
+
+        $tracks = $this->safeTracksByIds($spotifyTrackIds);
 
         return response()->json([
-            'playlist' => $playlist,
+            'playlist' => new PlaylistResource($playlist),
             'tracks' => $tracks,
         ]);
+    }
+
+    public function updatePlaylist(Request $request, Playlist $playlist): JsonResponse
+    {
+        $this->authorizePlaylist($request, $playlist);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'cover' => ['nullable', 'image', 'max:4096'],
+        ]);
+
+        $playlist->name = $data['name'];
+        $playlist->description = $data['description'] ?? null;
+
+        if ($request->hasFile('cover')) {
+            $path = $request->file('cover')->store('playlists', 'public');
+            $playlist->cover_url = asset('storage/' . $path);
+        }
+
+        $playlist->save();
+        $playlist->loadCount('songs');
+
+        $this->activity->record($request->user(), 'playlist.updated', 'playlist', $playlist);
+
+        return response()->json([
+            'playlist' => new PlaylistResource($playlist),
+        ]);
+    }
+
+    public function deletePlaylist(Request $request, Playlist $playlist): JsonResponse
+    {
+        $this->authorizePlaylist($request, $playlist);
+
+        $playlistId = $playlist->id;
+        $playlist->delete();
+
+        $this->activity->record($request->user(), 'playlist.deleted', 'playlist', $playlistId);
+
+        return response()->json(['message' => 'Playlist eliminada.']);
     }
 
     public function addTrackToPlaylist(Request $request, Playlist $playlist): JsonResponse
@@ -179,20 +251,33 @@ class LibraryController extends Controller
             'spotifyTrackId' => ['required', 'string'],
         ]);
 
-        $nextPosition = ((int) DB::table('playlist_tracks')
+        $song = $this->spotify->syncTrackBySpotifyId($data['spotifyTrackId']);
+
+        if (! $song) {
+            return response()->json(['message' => 'No se ha podido anadir la cancion.'], 422);
+        }
+
+        $nextPosition = ((int) DB::table('playlist_song')
             ->where('playlist_id', $playlist->id)
             ->max('position')) + 1;
 
-        DB::table('playlist_tracks')->insert([
-            'playlist_id' => $playlist->id,
-            'spotify_track_id' => $data['spotifyTrackId'],
-            'position' => $nextPosition,
-            'created_at' => now(),
+        DB::table('playlist_song')->updateOrInsert(
+            [
+                'playlist_id' => $playlist->id,
+                'song_id' => $song->id,
+            ],
+            [
+                'position' => $nextPosition,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+
+        $this->activity->record($request->user(), 'playlist.song_added', 'playlist', $playlist, [
+            'spotifyTrackId' => $data['spotifyTrackId'],
         ]);
 
-        $this->activity->record($request->user(), 'playlist.song_added');
-
-        return response()->json(['message' => 'Canción añadida a la playlist.']);
+        return response()->json(['message' => 'Cancion anadida a la playlist.']);
     }
 
     public function removeTrackFromPlaylist(Request $request, Playlist $playlist): JsonResponse
@@ -203,18 +288,42 @@ class LibraryController extends Controller
             'spotifyTrackId' => ['required', 'string'],
         ]);
 
-        DB::table('playlist_tracks')
-            ->where('playlist_id', $playlist->id)
-            ->where('spotify_track_id', $data['spotifyTrackId'])
-            ->delete();
+        $song = Song::query()->where('spotify_id', $data['spotifyTrackId'])->first();
 
-        $this->activity->record($request->user(), 'playlist.song_removed');
+        if ($song) {
+            DB::table('playlist_song')
+                ->where('playlist_id', $playlist->id)
+                ->where('song_id', $song->id)
+                ->delete();
+        }
 
-        return response()->json(['message' => 'Canción eliminada de la playlist.']);
+        $this->activity->record($request->user(), 'playlist.song_removed', 'playlist', $playlist, [
+            'spotifyTrackId' => $data['spotifyTrackId'],
+        ]);
+
+        return response()->json(['message' => 'Cancion eliminada de la playlist.']);
     }
 
     private function authorizePlaylist(Request $request, Playlist $playlist): void
     {
         abort_if($playlist->user_id !== $request->user()->id, 403);
+    }
+
+    private function safeTracksByIds(array $spotifyTrackIds): array
+    {
+        try {
+            return $this->spotify->getTracksByIds($spotifyTrackIds);
+        } catch (\Throwable $exception) {
+            return [];
+        }
+    }
+
+    private function safeArtistsByIds(array $spotifyArtistIds): array
+    {
+        try {
+            return $this->spotify->getArtistsByIds($spotifyArtistIds);
+        } catch (\Throwable $exception) {
+            return [];
+        }
     }
 }

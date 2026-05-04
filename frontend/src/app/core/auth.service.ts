@@ -3,7 +3,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { tap } from 'rxjs';
 
 import { API_BASE_URL } from './api';
-import { LoginStartResponse, SessionResponse, User } from './models';
+import { SessionResponse, User } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -17,14 +17,18 @@ export class AuthService {
   readonly isAdmin = computed(() => this.userState()?.role === 'admin');
 
   login(email: string, password: string) {
-    return this.http.post<LoginStartResponse | SessionResponse>(`${API_BASE_URL}/auth/login`, {
+    return this.http.post<SessionResponse>(`${API_BASE_URL}/auth/login`, {
       email,
       password,
-    }).pipe(tap((response) => this.storeSessionIfPresent(response)));
+    }).pipe(tap((response) => this.setSession(response)));
   }
 
   register(name: string, email: string, password: string) {
-    return this.http.post<LoginStartResponse>(`${API_BASE_URL}/auth/register`, { name, email, password });
+    return this.http.post<SessionResponse>(`${API_BASE_URL}/auth/register`, {
+      name,
+      email,
+      password,
+    }).pipe(tap((response) => this.setSession(response)));
   }
 
   verifyTwoFactor(challengeId: string, code: string) {
@@ -52,12 +56,6 @@ export class AuthService {
     this.userState.set(null);
     globalThis.localStorage?.removeItem('musichub_token');
     globalThis.localStorage?.removeItem('musichub_user');
-  }
-
-  private storeSessionIfPresent(response: LoginStartResponse | SessionResponse): void {
-    if ('token' in response) {
-      this.setSession(response);
-    }
   }
 
   private setSession(response: SessionResponse): void {

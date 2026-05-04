@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 
 import { CatalogService } from '../../core/catalog.service';
 import { SpotifyAlbum, SpotifyTrack } from '../../core/models';
@@ -12,8 +12,10 @@ import { SongRowComponent } from '../../shared/song-row.component';
   standalone: true,
   imports: [CommonModule, SongRowComponent],
   template: `
-    @if (!album()) {
-      <div class="empty-state">Cargando álbum...</div>
+    @if (error()) {
+      <div class="empty-state">{{ error() }}</div>
+    } @else if (!album()) {
+      <div class="empty-state">Cargando album...</div>
     } @else {
       <section class="page-hero page-hero--album">
         <img
@@ -22,7 +24,7 @@ import { SongRowComponent } from '../../shared/song-row.component';
           [alt]="album()?.name ?? ''"
         />
         <div>
-          <span class="eyebrow">Álbum</span>
+          <span class="eyebrow">Album</span>
           <h1>{{ album()?.name }}</h1>
           <p>
             {{ album()?.artists?.[0]?.name ?? '' }} ·
@@ -49,16 +51,25 @@ export class AlbumPageComponent {
 
   readonly album = signal<SpotifyAlbum | null>(null);
   readonly tracks = signal<SpotifyTrack[]>([]);
+  readonly error = signal('');
 
   constructor() {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const id = params.get('id');
       if (!id) return;
 
-      // CatalogService espera ID de Spotify como string
+      this.error.set('');
+      this.album.set(null);
+      this.tracks.set([]);
+
       this.catalog.album(id).subscribe((response) => {
+        if (!response.album) {
+          this.error.set('No se ha podido cargar el album.');
+          return;
+        }
+
         this.album.set(response.album);
-        this.tracks.set(response.tracks);
+        this.tracks.set(response.tracks ?? []);
       });
     });
   }

@@ -19,7 +19,7 @@ export function unwrapList<T>(value: ApiList<T> | undefined | null): T[] {
 }
 
 /* =====================================================
-   USER DOMAIN (LOCAL DB)
+   LOCAL DOMAIN
 ===================================================== */
 
 export interface User {
@@ -27,9 +27,103 @@ export interface User {
   name: string;
   email: string;
   role: 'user' | 'admin';
-  avatar_url: string | null;
+  avatarUrl: string | null;
   twoFactorEnabled?: boolean;
   isActive?: boolean;
+  playlistsCount?: number | null;
+  favoriteSongsCount?: number | null;
+  followedArtistsCount?: number | null;
+  createdAt?: string;
+}
+
+export interface LocalArtist {
+  id: number;
+  spotifyId?: string | null;
+  name: string;
+  slug?: string;
+  genre?: string | null;
+  followers: number;
+  imageUrl?: string | null;
+  bio?: string | null;
+  popularity?: number;
+}
+
+export interface LocalAlbum {
+  id: number;
+  spotifyId?: string | null;
+  artistId?: number;
+  title: string;
+  slug?: string;
+  coverUrl?: string | null;
+  releaseYear?: number | null;
+  totalTracks?: number;
+  artist?: LocalArtist;
+}
+
+export interface LocalSong {
+  id: number;
+  spotifyId?: string | null;
+  albumId?: number;
+  title: string;
+  durationSeconds: number;
+  previewUrl?: string | null;
+  trackNumber?: number;
+  explicit: boolean;
+  popularity?: number;
+  album?: LocalAlbum;
+  isFavorite?: boolean;
+}
+
+export interface Playlist {
+  id: number;
+  name: string;
+  description: string | null;
+  coverUrl?: string | null;
+  isPublic?: boolean;
+  songsCount?: number;
+  createdAt?: string;
+}
+
+export interface ActivityEvent {
+  id: number;
+  action: string;
+  resourceType: string;
+  resourceId: number | null;
+  metadata?: Record<string, unknown> | null;
+  user?: User | null;
+  createdAt: string;
+}
+
+export interface AdminTotals {
+  users: number;
+  artists: number;
+  songs: number;
+  playlists: number;
+  activityEvents: number;
+}
+
+export interface AdminStatsResponse {
+  totals: AdminTotals;
+  topArtists: LocalArtist[];
+  topSongs: LocalSong[];
+  recentActivity: ActivityEvent[];
+}
+
+export interface AdminUserLibrary {
+  user: User;
+  stats: {
+    playlists: number;
+    favorites: number;
+    followedArtists: number;
+  };
+  favoriteTracks: SpotifyTrack[];
+  followedArtists: SpotifyArtist[];
+  playlists: Playlist[];
+}
+
+export interface PlaylistDetail {
+  playlist: Playlist;
+  tracks: SpotifyTrack[];
 }
 
 /* =====================================================
@@ -75,31 +169,14 @@ export interface SpotifyTrack {
 }
 
 /* =====================================================
-   PLAYLISTS (LOCAL STATE + SPOTIFY TRACKS)
+   AUTH
 ===================================================== */
-
-export interface Playlist {
-  id: number;
-  name: string;
-  description: string | null;
-  created_at?: string;
-
-  // Campos opcionales usados por la UI (pueden venir o no del backend)
-  coverUrl?: string | null;
-  songsCount?: number;
-}
-
-export interface LoginStartResponse {
-  // Cuando el backend exige 2FA, devuelve estos campos.
-  // Si no exige 2FA, normalmente devuelve SessionResponse (token + user).
-  requiresTwoFactor?: boolean;
-  challengeId?: string;
-  debugCode?: string;
-}
 
 export interface SessionResponse {
   user: User;
-  token?: string;
+  token: string;
+  tokenType?: string;
+  expiresAt?: string;
 }
 
 /* =====================================================
@@ -114,7 +191,7 @@ export interface HomeData {
   tracks: SpotifyTrack[];
 }
 
-export interface SearchResults extends HomeData {}
+export type SearchResults = HomeData;
 
 /* =====================================================
    PROFILE (Hybrid: Local + Spotify)

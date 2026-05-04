@@ -39,10 +39,8 @@ return [
         'client_id' => env('SPOTIFY_CLIENT_ID'),
         'client_secret' => env('SPOTIFY_CLIENT_SECRET'),
         'market' => env('SPOTIFY_MARKET', 'ES'),
-        // SOLO para desarrollo local (Windows/Laragon a veces no tiene CA bundle configurado)
         'skip_ssl_verify' => env('SPOTIFY_SKIP_SSL_VERIFY', false),
-        // Ruta absoluta a curl.exe (porque el PATH de PHP/Apache puede no incluirlo)
-        'curl_path' => env('SPOTIFY_CURL_PATH', 'curl'),
+        'ca_bundle' => env('SPOTIFY_CA_BUNDLE'),
         'seed_artists' => [
             'Rojuu',
             'Saramalacara',

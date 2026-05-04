@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router } from '@angular/router';
 
+import { AuthService } from '../../core/auth.service';
 import { CatalogService } from '../../core/catalog.service';
 import { LibraryService } from '../../core/library.service';
 import { SpotifyAlbum, SpotifyArtist } from '../../core/models';
@@ -13,7 +14,9 @@ import { MediaCardComponent } from '../../shared/media-card.component';
   standalone: true,
   imports: [CommonModule, MediaCardComponent],
   template: `
-    @if (!artist()) {
+    @if (error()) {
+      <div class="empty-state">{{ error() }}</div>
+    } @else if (!artist()) {
       <div class="empty-state">Cargando artista...</div>
     } @else {
       <section class="page-hero page-hero--artist">
@@ -38,57 +41,104 @@ import { MediaCardComponent } from '../../shared/media-card.component';
 
       <section class="content-section">
         <div class="section-heading">
-          <h2>Álbumes</h2>
+          <h2>Albumes</h2>
+          <span>{{ albums().length }} publicados</span>
         </div>
 
-        <div class="media-grid">
-          @for (album of albums(); track album.id) {
-            <app-media-card
-              kind="album"
-              [title]="album.name"
-              [subtitle]="album.release_date ?? ''"
-              [imageUrl]="album.images?.[0]?.url ?? null"
-              [route]="['/albums', album.id]"
-            />
-          }
-        </div>
+        @if (!albums().length) {
+          <div class="empty-state">No hemos encontrado albumes para este artista.</div>
+        } @else {
+          <div class="media-grid">
+            @for (album of albums(); track album.id) {
+              <app-media-card
+                kind="album"
+                [title]="album.name"
+                [subtitle]="album.release_date ?? ''"
+                [imageUrl]="album.images?.[0]?.url ?? null"
+                [route]="['/albums', album.id]"
+              />
+            }
+          </div>
+        }
       </section>
     }
   `,
 })
 export class ArtistPageComponent {
   private readonly route = inject(ActivatedRoute);
+  private readonly auth = inject(AuthService);
   private readonly catalog = inject(CatalogService);
   private readonly library = inject(LibraryService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
 
   readonly artist = signal<SpotifyArtist | null>(null);
   readonly albums = signal<SpotifyAlbum[]>([]);
   readonly isFollowed = signal(false);
+  readonly error = signal('');
 
   constructor() {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const id = params.get('id');
       if (!id) return;
 
-      // CatalogService espera ID de Spotify como string
-      this.catalog.artist(id).subscribe((response) => {
-        this.artist.set(response.artist);
-        this.albums.set(response.albums);
+      this.error.set('');
+      this.artist.set(null);
+      this.albums.set([]);
 
-        const followed = this.library.followedArtistIds().includes(response.artist.id);
-        this.isFollowed.set(followed);
+      this.catalog.artist(id).subscribe({
+        next: (response) => {
+          if (!response.artist) {
+            this.error.set('No se ha podido cargar el artista.');
+            return;
+          }
+
+          const totalFollowers = response.artist.followers?.total ?? 0;
+          this.artist.set({
+            ...response.artist,
+            followers: { total: totalFollowers },
+          });
+          this.albums.set(response.albums ?? []);
+
+          const followed = this.library.followedArtistIds().includes(response.artist.id);
+          this.isFollowed.set(followed);
+        },
+        error: () => this.error.set('No se ha podido cargar el artista.'),
       });
     });
   }
 
-  toggleFollow() {
-    const artist = this.artist();
-    if (!artist) return;
+  toggleFollow(): void {
+    const currentArtist = this.artist();
+    if (!currentArtist) return;
 
-    const isFollowed = this.isFollowed();
-    const req = isFollowed ? this.library.unfollowArtist(artist.id) : this.library.followArtist(artist.id);
+    if (!this.auth.isLoggedIn()) {
+      void this.router.navigate(['/login']);
+      return;
+    }
 
-    req.subscribe(() => this.isFollowed.set(!isFollowed));
+    const followed = this.isFollowed();
+    const request = followed
+      ? this.library.unfollowArtist(currentArtist.id)
+      : this.library.followArtist(currentArtist.id);
+
+    request.subscribe({
+      next: () => {
+        this.isFollowed.set(!followed);
+        this.artist.update((artist) => {
+          if (!artist) return artist;
+
+          const currentFollowers = artist.followers?.total ?? 0;
+          const nextFollowers = followed
+            ? Math.max(0, currentFollowers - 1)
+            : currentFollowers + 1;
+
+          return {
+            ...artist,
+            followers: { total: nextFollowers },
+          };
+        });
+      },
+    });
   }
 }

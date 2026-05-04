@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
@@ -36,10 +36,15 @@ export class App {
   search = '';
 
   constructor() {
-    if (this.auth.isLoggedIn()) {
-      this.library.favorites().subscribe();
-      this.library.followedArtists().subscribe();
-    }
+    effect(() => {
+      if (this.auth.isLoggedIn()) {
+        this.library.favorites().subscribe();
+        this.library.followedArtists().subscribe();
+        return;
+      }
+
+      this.library.clearState();
+    });
   }
   readonly icons = {
     Heart,

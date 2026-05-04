@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Artist as LocalArtist;
 use App\Services\SpotifyCatalogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,11 +11,8 @@ class CatalogController extends Controller
 {
     public function __construct(
         private readonly SpotifyCatalogService $spotify
-    ) {}
-
-    /* =====================================================
-     |  HOME (Discover dinámico Spotify)
-     ===================================================== */
+    ) {
+    }
 
     public function home(): JsonResponse
     {
@@ -35,8 +33,7 @@ class CatalogController extends Controller
 
         try {
             $results = $this->spotify->search("genre:{$genre}");
-        } catch (\Throwable $e) {
-            // Si Spotify falla/no está configurado no debe petar el frontend.
+        } catch (\Throwable $exception) {
             $results = [
                 'artists' => [],
                 'albums' => [],
@@ -53,17 +50,22 @@ class CatalogController extends Controller
         ]);
     }
 
-    /* =====================================================
-     |  SEARCH
-     ===================================================== */
-
     public function search(Request $request): JsonResponse
     {
         $query = trim((string) $request->query('q', ''));
 
+        if ($query === '') {
+            return response()->json([
+                'source' => 'spotify',
+                'artists' => [],
+                'albums' => [],
+                'tracks' => [],
+            ]);
+        }
+
         try {
             $results = $this->spotify->search($query);
-        } catch (\Throwable $e) {
+        } catch (\Throwable $exception) {
             $results = [
                 'artists' => [],
                 'albums' => [],
@@ -79,81 +81,72 @@ class CatalogController extends Controller
         ]);
     }
 
-    /* =====================================================
-     |  ARTIST
-     ===================================================== */
-
-    public function artist(string $id): JsonResponse
+    public function artist(string $spotifyId): JsonResponse
     {
-        $artist = null;
-        $albums = [];
-
         try {
-            $artistData = $this->spotify->getArtist($id);
-            if (!empty($artistData)) {
-                $artist = $artistData;
-            }
-        } catch (\Throwable $e) {
-            // No rompemos toda la respuesta: devolvemos artist null + diagnóstico
-            $status = method_exists($e, 'getCode') ? (int) $e->getCode() : null;
-
+            $artist = $this->spotify->getArtist($spotifyId);
+            $albums = $this->spotify->getArtistAlbums($spotifyId);
+        } catch (\Throwable $exception) {
             return response()->json([
                 'artist' => null,
                 'albums' => [],
-                'message' => 'Spotify no disponible para cargar artista en este entorno.',
+                'message' => 'No se ha podido cargar el artista desde Spotify.',
                 'spotifyEnabled' => $this->spotify->enabled(),
-                'spotifySkipSslVerify' => (bool) config('services.spotify.skip_ssl_verify', false),
-                'spotifyError' => [
-                    'type' => get_class($e),
-                    'status' => $status ?: null,
-                ],
-            ], 200);
+            ]);
         }
 
-        // Albums: si falla, solo degradamos albums, pero mantenemos el artista si lo tenemos
-        try {
-            $albums = $this->spotify->getArtistAlbums($id) ?: [];
-        } catch (\Throwable $e) {
-            $albums = [];
-        }
-
-        // Si no tenemos artista, devolvemos mensaje estable
-        if ($artist === null) {
-            return response()->json([
-                'artist' => null,
-                'albums' => [],
-                'message' => 'Spotify no disponible para cargar artista en este entorno.',
-                'spotifyEnabled' => $this->spotify->enabled(),
-                'spotifySkipSslVerify' => (bool) config('services.spotify.skip_ssl_verify', false),
-            ], 200);
-        }
+        $artist = $this->mergeLocalFollowers($spotifyId, $artist);
 
         return response()->json([
-            'artist' => $artist,
+            'artist' => $artist ?: null,
             'albums' => $albums,
         ]);
     }
 
-    /* =====================================================
-     |  ALBUM
-     ===================================================== */
-
-    public function album(string $id): JsonResponse
+    public function album(string $spotifyId): JsonResponse
     {
         try {
-            $album = $this->spotify->getAlbum($id);
-            $tracks = $this->spotify->getAlbumTracks($id);
-        } catch (\Throwable $e) {
+            $album = $this->spotify->getAlbum($spotifyId);
+            $tracks = $this->spotify->getAlbumTracks($spotifyId);
+        } catch (\Throwable $exception) {
             return response()->json([
                 'album' => null,
                 'tracks' => [],
-                'message' => 'Spotify no disponible para cargar álbum en este entorno.',
-            ], 200);
+                'message' => 'No se ha podido cargar el album desde Spotify.',
+                'spotifyEnabled' => $this->spotify->enabled(),
+            ]);
         }
 
         return response()->json([
-            'album' => $album,
+            'album' => $album ?: null,
             'tracks' => $tracks,
         ]);
+    }
+
+    private function mergeLocalFollowers(string $spotifyId, array $artist): array
+    {
+        if ($artist === []) {
+            return [];
+        }
+
+        $localArtist = LocalArtist::query()
+            ->where('spotify_id', $spotifyId)
+            ->withCount('followedByUsers')
+            ->first();
+
+        if (! $localArtist) {
+            return $artist;
+        }
+
+        $baseFollowers = max(
+            (int) ($artist['followers']['total'] ?? 0),
+            (int) $localArtist->followers
+        );
+
+        $artist['followers'] = [
+            'total' => $baseFollowers + (int) $localArtist->followed_by_users_count,
+        ];
+
+        return $artist;
     }
 }
