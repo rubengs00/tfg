@@ -1,0 +1,177 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, Helvetica, sans-serif;
+}
+
+body{
+    background:#121212;
+    color:white;
+}
+
+.navbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:20px 40px;
+    background:#0f0f0f;
+    border-bottom:1px solid #222;
+}
+
+.logo{
+    font-size:26px;
+    font-weight:bold;
+    color:#1db954;
+}
+
+.search{
+    width:40%;
+    padding:10px 15px;
+    border-radius:20px;
+    border:none;
+    background:#2a2a2a;
+    color:white;
+}
+
+.search:focus{
+    outline:none;
+    background:#333;
+}
+
+.nav-links a{
+    margin-left:20px;
+    text-decoration:none;
+    color:#ccc;
+    font-weight:500;
+}
+
+.nav-links a:hover{
+    color:white;
+}
+
+.container{
+    padding:40px;
+}
+
+section{
+    margin-bottom:50px;
+}
+
+h2{
+    margin-bottom:20px;
+    font-size:24px;
+}
+
+.card-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+    gap:25px;
+}
+
+.card{
+    background:#181818;
+    padding:20px;
+    border-radius:12px;
+    transition:0.2s;
+    cursor:pointer;
+}
+
+.card:hover{
+    background:#242424;
+    transform:translateY(-4px);
+}
+
+.card-image{
+    width:100%;
+    height:180px;
+    background:#333;
+    border-radius:10px;
+    margin-bottom:15px;
+}
+
+.card-image.album{
+    border-radius:6px;
+}
+
+.card h3{
+    font-size:18px;
+    margin-bottom:5px;
+    }
+
+.card p{
+    font-size:14px;
+    color:#b3b3b3;
+}
+
+.music-player{
+    position:fixed;
+    bottom:0;
+    left:0;
+    width:100%;
+    height:80px;
+    background:#181818;
+    border-top:1px solid #282828;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    padding:0 30px;
+}
+
+.player-song{
+    display:flex;
+    align-items:center;
+    gap:15px;
+}
+
+.song-cover{
+    width:50px;
+    height:50px;
+    background:#333;
+    border-radius:6px;
+}
+
+.song-title{
+    font-size:14px;
+    font-weight:bold;
+}
+
+.song-artist{
+    font-size:12px;
+    color:#aaa;
+}
+
+
+.player-controls{
+    display:flex;
+    align-items:center;
+    gap:15px;
+    width:40%;
+}
+
+.play{
+    background:#1db954;
+    border:none;
+    color:white;
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    cursor:pointer;
+    font-size:16px;
+}
+
+.play:hover{
+    background:#1ed760;
+}
+
+.progress{
+    width:100%;
+}
+
+.player-volume{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}

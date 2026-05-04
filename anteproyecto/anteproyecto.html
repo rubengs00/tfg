@@ -1,0 +1,130 @@
+<!DOCTYPE html> 
+<!--
+Prototipo básico, quiero ponerle iconos buenos y un aspecto más agradable pero es para hacer una idea
+-->
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>MusicHub</title>
+    <link rel="stylesheet" href="anteproyecto.css">
+</head>
+
+<body>
+
+    <header class="navbar">
+
+        <div class="logo">MusicHub</div>
+
+        <input class="search" type="text" placeholder="Buscar artistas, álbumes o canciones...">
+
+        <div class="nav-links">
+            <a href="#">Explorar</a>
+            <a href="#">Login</a>
+        </div>
+
+    </header>
+
+
+    <main class="container">
+
+    <section>
+
+        <h2>Artistas populares</h2>
+
+        <div class="card-grid">
+
+            <div class="card">
+                <div class="card-image"></div>
+                <h3>Artist</h3>
+                <p>Pop</p>
+            </div>
+
+            <div class="card">
+                <div class="card-image"></div>
+                <h3>Artist</h3>
+                <p>Rock</p>
+            </div>
+
+            <div class="card">
+                <div class="card-image"></div>
+                <h3>Artist</h3>
+                <p>Hip Hop</p>
+            </div>
+
+            <div class="card">
+                <div class="card-image"></div>
+                <h3>Artist</h3>
+                <p>Electronic</p>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <section>
+
+    <h2>Álbumes populares</h2>
+
+    <div class="card-grid">
+
+        <div class="card">
+            <div class="card-image album"></div>
+            <h3>Album</h3>
+            <p>Artist</p>
+        </div>
+
+        <div class="card">
+            <div class="card-image album"></div>
+            <h3>Album</h3>
+            <p>Artist</p>
+        </div>
+
+        <div class="card">
+            <div class="card-image album"></div>
+            <h3>Album</h3>
+            <p>Artist</p>
+        </div>
+
+        <div class="card">
+            <div class="card-image album"></div>
+            <h3>Album</h3>
+            <p>Artist</p>
+        </div>
+
+    </div>
+
+    </section>
+
+    </main>
+
+    <footer class="music-player">
+
+        <div class="player-song">
+
+            <div class="song-cover"></div>
+
+            <div>
+                <div class="song-title">Song Name</div>
+                <div class="song-artist">Artist</div>
+            </div>
+
+        </div>
+
+        <div class="player-controls">
+
+        <button class="play">▶</button>
+            <input type="range" class="progress">
+        </div>
+
+        <div class="player-volume">
+            🔊
+            <input type="range">
+        </div>
+
+        <audio id="audio"></audio>
+
+    </footer>
+
+</body>
+</html>
