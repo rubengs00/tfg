@@ -85,9 +85,8 @@ class DatabaseSeeder extends Seeder
         $spotify = app(SpotifyCatalogService::class);
 
         if (! $spotify->enabled()) {
-            $this->call(DemoCatalogSeeder::class);
-
-            return 'demo';
+            // No catálogo demo: solo Spotify real
+            return 'spotify-disabled';
         }
 
         try {
@@ -100,8 +99,7 @@ class DatabaseSeeder extends Seeder
             report($exception);
         }
 
-        $this->call(DemoCatalogSeeder::class);
-
-        return 'demo-fallback';
+        // Si Spotify falla, no usar catálogo demo
+        return 'spotify-failed';
     }
 }

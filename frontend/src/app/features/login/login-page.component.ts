@@ -69,7 +69,7 @@ export class LoginPageComponent {
     this.loading.set(true);
 
     if (this.challenge()) {
-      this.auth.verifyTwoFactor(this.challenge()!.challengeId, this.code).subscribe({
+    this.auth.verifyTwoFactor(this.challenge()?.challengeId ?? '', this.code).subscribe({
         next: () => void this.router.navigate(['/']),
         error: () => {
           this.error.set('Codigo incorrecto o expirado.');

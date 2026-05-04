@@ -61,10 +61,22 @@ export class AuthService {
   }
 
   private setSession(response: SessionResponse): void {
-    this.tokenState.set(response.token);
+    const token = response.token ?? null;
+    this.tokenState.set(token);
     this.userState.set(response.user);
-    globalThis.localStorage?.setItem('musichub_token', response.token);
+
+    if (token) {
+      globalThis.localStorage?.setItem('musichub_token', token);
+    } else {
+      globalThis.localStorage?.removeItem('musichub_token');
+    }
+
     globalThis.localStorage?.setItem('musichub_user', JSON.stringify(response.user));
+  }
+
+  updateUser(user: User): void {
+    this.userState.set(user);
+    globalThis.localStorage?.setItem('musichub_user', JSON.stringify(user));
   }
 
   private readStoredUser(): User | null {

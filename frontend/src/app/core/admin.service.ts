@@ -3,34 +3,18 @@ import { inject, Injectable } from '@angular/core';
 import { map } from 'rxjs';
 
 import { API_BASE_URL } from './api';
-import { ActivityLog, Artist, Song, unwrapList, User } from './models';
-
-export interface AdminStats {
-  totals: {
-    users: number;
-    artists: number;
-    songs: number;
-    playlists: number;
-    activityEvents: number;
-  };
-  topArtists: Artist[] | { data: Artist[] };
-  topSongs: Song[] | { data: Song[] };
-  recentActivity: ActivityLog[] | { data: ActivityLog[] };
-}
+import { unwrapList, User } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class AdminService {
   private readonly http = inject(HttpClient);
 
+  /**
+   * Admin está fuera del alcance Spotify-first.
+   * Dejamos métodos mínimos para no romper compilación.
+   */
   stats() {
-    return this.http.get<AdminStats>(`${API_BASE_URL}/admin/stats`).pipe(
-      map((stats) => ({
-        totals: stats.totals,
-        topArtists: unwrapList(stats.topArtists),
-        topSongs: unwrapList(stats.topSongs),
-        recentActivity: unwrapList(stats.recentActivity),
-      })),
-    );
+    return this.http.get(`${API_BASE_URL}/admin/stats`);
   }
 
   users() {
@@ -51,7 +35,6 @@ export class AdminService {
   }
 
   activity() {
-    return this.http.get<{ activity: ActivityLog[] | { data: ActivityLog[] } }>(`${API_BASE_URL}/admin/activity`)
-      .pipe(map((response) => unwrapList(response.activity)));
+    return this.http.get(`${API_BASE_URL}/admin/activity`);
   }
 }

@@ -62,3 +62,5 @@ php artisan test
 cd ..\frontend
 npm.cmd run build
 ```
+php artisan config:clear
+

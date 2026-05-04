@@ -2,111 +2,158 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\AlbumResource;
-use App\Http\Resources\ArtistResource;
-use App\Http\Resources\SongResource;
-use App\Models\Album;
-use App\Models\Artist;
-use App\Models\Song;
 use App\Services\SpotifyCatalogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class CatalogController extends Controller
 {
-    public function __construct(private readonly SpotifyCatalogService $spotify)
-    {
-    }
+    public function __construct(
+        private readonly SpotifyCatalogService $spotify
+    ) {}
+
+    /* =====================================================
+     |  HOME (Discover dinámico Spotify)
+     ===================================================== */
 
     public function home(): JsonResponse
     {
+        $genres = [
+            'rock',
+            'pop',
+            'hip hop',
+            'indie',
+            'electronic',
+            'latin',
+            'k-pop',
+            'trap',
+            'metal',
+            'jazz',
+        ];
+
+        $genre = $genres[array_rand($genres)];
+
+        try {
+            $results = $this->spotify->search("genre:{$genre}");
+        } catch (\Throwable $e) {
+            // Si Spotify falla/no está configurado no debe petar el frontend.
+            $results = [
+                'artists' => [],
+                'albums' => [],
+                'tracks' => [],
+            ];
+        }
+
         return response()->json([
-            'artists' => ArtistResource::collection(
-                Artist::query()->orderByDesc('popularity')->limit(8)->get()
-            ),
-            'albums' => AlbumResource::collection(
-                Album::query()->with('artist')->latest()->limit(8)->get()
-            ),
-            'songs' => SongResource::collection(
-                Song::query()->with('album.artist')->orderByDesc('popularity')->limit(10)->get()
-            ),
+            'source' => 'spotify',
+            'genre' => $genre,
+            'artists' => $results['artists'],
+            'albums' => $results['albums'],
+            'tracks' => $results['tracks'],
         ]);
     }
+
+    /* =====================================================
+     |  SEARCH
+     ===================================================== */
 
     public function search(Request $request): JsonResponse
     {
         $query = trim((string) $request->query('q', ''));
 
-        if ($query === '') {
-            return response()->json(['source' => 'local', 'artists' => [], 'albums' => [], 'songs' => []]);
-        }
-
-        $spotifyResults = $this->spotify->search($query);
-
-        if ($spotifyResults !== null) {
-            return response()->json([
-                'source' => $spotifyResults['source'],
-                'artists' => ArtistResource::collection($spotifyResults['artists']),
-                'albums' => AlbumResource::collection($spotifyResults['albums']),
-                'songs' => SongResource::collection($spotifyResults['songs']),
-            ]);
+        try {
+            $results = $this->spotify->search($query);
+        } catch (\Throwable $e) {
+            $results = [
+                'artists' => [],
+                'albums' => [],
+                'tracks' => [],
+            ];
         }
 
         return response()->json([
-            'source' => 'local',
-            'artists' => ArtistResource::collection(
-                Artist::query()
-                    ->where('name', 'like', "%{$query}%")
-                    ->orWhere('genre', 'like', "%{$query}%")
-                    ->limit(8)
-                    ->get()
-            ),
-            'albums' => AlbumResource::collection(
-                Album::query()
-                    ->with('artist')
-                    ->where('title', 'like', "%{$query}%")
-                    ->limit(8)
-                    ->get()
-            ),
-            'songs' => SongResource::collection(
-                Song::query()
-                    ->with('album.artist')
-                    ->where('title', 'like', "%{$query}%")
-                    ->limit(10)
-                    ->get()
-            ),
+            'source' => 'spotify',
+            'artists' => $results['artists'],
+            'albums' => $results['albums'],
+            'tracks' => $results['tracks'],
         ]);
     }
 
-    public function artists(): AnonymousResourceCollection
+    /* =====================================================
+     |  ARTIST
+     ===================================================== */
+
+    public function artist(string $id): JsonResponse
     {
-        return ArtistResource::collection(
-            Artist::query()->orderByDesc('popularity')->paginate(20)
-        );
+        $artist = null;
+        $albums = [];
+
+        try {
+            $artistData = $this->spotify->getArtist($id);
+            if (!empty($artistData)) {
+                $artist = $artistData;
+            }
+        } catch (\Throwable $e) {
+            // No rompemos toda la respuesta: devolvemos artist null + diagnóstico
+            $status = method_exists($e, 'getCode') ? (int) $e->getCode() : null;
+
+            return response()->json([
+                'artist' => null,
+                'albums' => [],
+                'message' => 'Spotify no disponible para cargar artista en este entorno.',
+                'spotifyEnabled' => $this->spotify->enabled(),
+                'spotifySkipSslVerify' => (bool) config('services.spotify.skip_ssl_verify', false),
+                'spotifyError' => [
+                    'type' => get_class($e),
+                    'status' => $status ?: null,
+                ],
+            ], 200);
+        }
+
+        // Albums: si falla, solo degradamos albums, pero mantenemos el artista si lo tenemos
+        try {
+            $albums = $this->spotify->getArtistAlbums($id) ?: [];
+        } catch (\Throwable $e) {
+            $albums = [];
+        }
+
+        // Si no tenemos artista, devolvemos mensaje estable
+        if ($artist === null) {
+            return response()->json([
+                'artist' => null,
+                'albums' => [],
+                'message' => 'Spotify no disponible para cargar artista en este entorno.',
+                'spotifyEnabled' => $this->spotify->enabled(),
+                'spotifySkipSslVerify' => (bool) config('services.spotify.skip_ssl_verify', false),
+            ], 200);
+        }
+
+        return response()->json([
+            'artist' => $artist,
+            'albums' => $albums,
+        ]);
     }
 
-    public function artist(Artist $artist): ArtistResource
-    {
-        return new ArtistResource($artist->load('albums.songs'));
-    }
+    /* =====================================================
+     |  ALBUM
+     ===================================================== */
 
-    public function albums(): AnonymousResourceCollection
+    public function album(string $id): JsonResponse
     {
-        return AlbumResource::collection(
-            Album::query()->with('artist')->latest()->paginate(20)
-        );
-    }
+        try {
+            $album = $this->spotify->getAlbum($id);
+            $tracks = $this->spotify->getAlbumTracks($id);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'album' => null,
+                'tracks' => [],
+                'message' => 'Spotify no disponible para cargar álbum en este entorno.',
+            ], 200);
+        }
 
-    public function album(Album $album): AlbumResource
-    {
-        return new AlbumResource($album->load('artist', 'songs.album.artist'));
-    }
-
-    public function songs(): AnonymousResourceCollection
-    {
-        return SongResource::collection(
-            Song::query()->with('album.artist')->orderByDesc('popularity')->paginate(30)
-        );
+        return response()->json([
+            'album' => $album,
+            'tracks' => $tracks,
+        ]);
     }
 }

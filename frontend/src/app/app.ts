@@ -19,6 +19,7 @@ import {
 
 import { AuthService } from './core/auth.service';
 import { PlayerService } from './core/player.service';
+import { LibraryService } from './core/library.service';
 
 @Component({
   selector: 'app-root',
@@ -29,9 +30,17 @@ import { PlayerService } from './core/player.service';
 export class App {
   protected readonly auth = inject(AuthService);
   protected readonly player = inject(PlayerService);
+  private readonly library = inject(LibraryService);
   private readonly router = inject(Router);
 
   search = '';
+
+  constructor() {
+    if (this.auth.isLoggedIn()) {
+      this.library.favorites().subscribe();
+      this.library.followedArtists().subscribe();
+    }
+  }
   readonly icons = {
     Heart,
     Home,
@@ -58,5 +67,12 @@ export class App {
 
   setVolume(value: string | number): void {
     this.player.setVolume(Number(value));
+  }
+
+  formatTime(seconds: number): string {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   }
 }

@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Plus, Shield, Trash2 } from 'lucide-angular';
 
 import { AdminService } from '../../core/admin.service';
-import { ActivityLog, Artist, Song, User } from '../../core/models';
+import { User } from '../../core/models';
 
 @Component({
   selector: 'app-admin-page',
@@ -105,10 +105,11 @@ export class AdminPageComponent {
   private readonly admin = inject(AdminService);
 
   readonly users = signal<User[]>([]);
+  // Admin desactivado en modo Spotify-first: solo mantenemos usuarios.
   readonly totals = signal<{ users: number; artists: number; songs: number; playlists: number; activityEvents: number } | null>(null);
-  readonly topArtists = signal<Artist[]>([]);
-  readonly topSongs = signal<Song[]>([]);
-  readonly activity = signal<ActivityLog[]>([]);
+  readonly topArtists = signal<any[]>([]);
+  readonly topSongs = signal<any[]>([]);
+  readonly activity = signal<any[]>([]);
   readonly icons = { Plus, Shield, Trash2 };
 
   newUser: { name: string; email: string; password: string; role: 'user' | 'admin' } = {
@@ -150,13 +151,8 @@ export class AdminPageComponent {
   }
 
   private refresh(): void {
-    this.admin.stats().subscribe((stats) => {
-      this.totals.set(stats.totals);
-      this.topArtists.set(stats.topArtists);
-      this.topSongs.set(stats.topSongs);
-      this.activity.set(stats.recentActivity);
-    });
-
+    // En Spotify-first no garantizamos stats/actividad/top*.
+    // Solo refrescamos usuarios para evitar errores de tipado y compilación.
     this.admin.users().subscribe((users) => this.users.set(users));
   }
 }

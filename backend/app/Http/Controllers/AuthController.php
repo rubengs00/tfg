@@ -33,7 +33,7 @@ class AuthController extends Controller
             'email' => $data['email'],
             'password' => $data['password'],
             'role' => 'user',
-            'two_factor_enabled' => true,
+            'two_factor_enabled' => false,
         ]);
 
         $this->activity->record($user, 'auth.register', 'user', $user);

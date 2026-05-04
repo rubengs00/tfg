@@ -2,35 +2,91 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\ArtistResource;
-use App\Http\Resources\PlaylistResource;
-use App\Http\Resources\SongResource;
-use App\Http\Resources\UserResource;
+use App\Services\SpotifyCatalogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProfileController extends Controller
 {
+    public function __construct(
+        private readonly SpotifyCatalogService $spotify
+    ) {}
+
     public function show(Request $request): JsonResponse
     {
         $user = $request->user();
 
+        // ✅ Contadores
+        $playlistCount = $user->playlists()->count();
+        $favoriteCount = DB::table('favorite_songs')
+            ->where('user_id', $user->id)
+            ->count();
+
+        $followedCount = DB::table('followed_artists')
+            ->where('user_id', $user->id)
+            ->count();
+
+        // ✅ Favoritos
+        $favoriteIds = DB::table('favorite_songs')
+            ->where('user_id', $user->id)
+            ->pluck('spotify_track_id')
+            ->take(10)
+            ->toArray();
+
+        try {
+            $favoriteTracks = $this->spotify->getTracksByIds($favoriteIds);
+        } catch (\Throwable $e) {
+            $favoriteTracks = [];
+        }
+
+        // ✅ Artistas seguidos
+        $followedIds = DB::table('followed_artists')
+            ->where('user_id', $user->id)
+            ->pluck('spotify_artist_id')
+            ->take(10)
+            ->toArray();
+
+        // Si Spotify no está configurado o devuelve error (403, etc.), no debería tumbar el perfil.
+        try {
+            $followedArtists = $this->spotify->getArtistsByIds($followedIds);
+        } catch (\Throwable $e) {
+            $followedArtists = [];
+        }
+
         return response()->json([
-            'user' => new UserResource($user),
+            'user' => $user,
             'stats' => [
-                'playlists' => $user->playlists()->count(),
-                'favorites' => $user->favoriteSongs()->count(),
-                'followedArtists' => $user->followedArtists()->count(),
+                'playlists' => $playlistCount,
+                'favorites' => $favoriteCount,
+                'followedArtists' => $followedCount,
             ],
-            'followedArtists' => ArtistResource::collection(
-                $user->followedArtists()->limit(8)->get()
-            ),
-            'playlists' => PlaylistResource::collection(
-                $user->playlists()->withCount('songs')->latest()->limit(8)->get()
-            ),
-            'favoriteSongs' => SongResource::collection(
-                $user->favoriteSongs()->with('album.artist')->limit(10)->get()
-            ),
+            'playlists' => $user->playlists()->latest()->limit(8)->get(),
+            'favoriteTracks' => $favoriteTracks,
+            'followedArtists' => $followedArtists,
+        ]);
+    }
+
+    public function update(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'avatar' => ['nullable', 'image', 'max:2048'],
+        ]);
+
+        $user->name = $validated['name'];
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $user->avatar_url = asset('storage/' . $path);
+        }
+
+        $user->save();
+
+        return response()->json([
+            'user' => $user,
         ]);
     }
 }

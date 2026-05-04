@@ -126,6 +126,22 @@ img {
   gap: 18px;
 }
 
+// ✅ Scroll horizontal artistas proporcional
+.artist-scroll {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-behavior: smooth;
+}
+
+.artist-scroll .media-card {
+  flex: 0 0 auto;       // ✅ no se encogen
+  min-width: 170px;    // ✅ mantienen tamaño mínimo real
+  width: 170px;        // ✅ tamaño fijo consistente
+  min-height: 236px;   // ✅ misma altura que grid
+}
+
 .media-card {
   display: grid;
   gap: 10px;

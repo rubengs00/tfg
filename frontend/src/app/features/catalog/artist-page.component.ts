@@ -1,89 +1,94 @@
+import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router } from '@angular/router';
-import { Check, LucideAngularModule, UserPlus } from 'lucide-angular';
 
-import { AuthService } from '../../core/auth.service';
 import { CatalogService } from '../../core/catalog.service';
 import { LibraryService } from '../../core/library.service';
-import { Artist } from '../../core/models';
+import { SpotifyAlbum, SpotifyArtist } from '../../core/models';
 import { MediaCardComponent } from '../../shared/media-card.component';
 
 @Component({
   selector: 'app-artist-page',
-  imports: [LucideAngularModule, MediaCardComponent],
+  standalone: true,
+  imports: [CommonModule, MediaCardComponent],
   template: `
-    @if (artist(); as currentArtist) {
-      <section class="detail-hero">
-        <img class="detail-hero__image detail-hero__image--round" [src]="currentArtist.imageUrl ?? ''" [alt]="currentArtist.name" />
+    @if (!artist()) {
+      <div class="empty-state">Cargando artista...</div>
+    } @else {
+      <section class="page-hero page-hero--artist">
+        <img
+          class="page-hero__cover page-hero__cover--round"
+          [src]="artist()?.images?.[0]?.url ?? ''"
+          [alt]="artist()?.name ?? ''"
+        />
         <div>
           <span class="eyebrow">Artista</span>
-          <h1>{{ currentArtist.name }}</h1>
-          <p>{{ currentArtist.genre }} / {{ currentArtist.followers.toLocaleString('es-ES') }} seguidores</p>
+          <h1>{{ artist()?.name }}</h1>
+          <p>
+            {{ artist()?.followers?.total ?? 0 | number }} seguidores ·
+            {{ artist()?.genres?.[0] ?? 'Artista' }}
+          </p>
+
           <button class="primary-button" type="button" (click)="toggleFollow()">
-            <lucide-icon [img]="following() ? icons.Check : icons.UserPlus" [size]="18"></lucide-icon>
-            {{ following() ? 'Siguiendo' : 'Seguir' }}
+            {{ isFollowed() ? 'Dejar de seguir' : 'Seguir' }}
           </button>
         </div>
       </section>
 
       <section class="content-section">
         <div class="section-heading">
-          <h2>Albumes</h2>
+          <h2>Álbumes</h2>
         </div>
+
         <div class="media-grid">
-          @for (album of currentArtist.albums ?? []; track album.id) {
+          @for (album of albums(); track album.id) {
             <app-media-card
-              [title]="album.title"
-              [subtitle]="album.releaseYear?.toString() ?? 'Album'"
-              [imageUrl]="album.coverUrl"
+              kind="album"
+              [title]="album.name"
+              [subtitle]="album.release_date ?? ''"
+              [imageUrl]="album.images?.[0]?.url ?? null"
               [route]="['/albums', album.id]"
             />
           }
         </div>
       </section>
-    } @else {
-      <div class="empty-state">Cargando artista...</div>
     }
   `,
 })
 export class ArtistPageComponent {
-  private readonly auth = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
   private readonly catalog = inject(CatalogService);
   private readonly library = inject(LibraryService);
-  private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly artist = signal<Artist | null>(null);
-  readonly following = signal(false);
-  readonly icons = { Check, UserPlus };
+  readonly artist = signal<SpotifyArtist | null>(null);
+  readonly albums = signal<SpotifyAlbum[]>([]);
+  readonly isFollowed = signal(false);
 
   constructor() {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
-      const id = Number(params.get('id'));
-      this.catalog.artist(id).subscribe((artist) => {
-        this.artist.set(artist);
-        this.following.set(Boolean(artist.isFollowed));
+      const id = params.get('id');
+      if (!id) return;
+
+      // CatalogService espera ID de Spotify como string
+      this.catalog.artist(id).subscribe((response) => {
+        this.artist.set(response.artist);
+        this.albums.set(response.albums);
+
+        const followed = this.library.followedArtistIds().includes(response.artist.id);
+        this.isFollowed.set(followed);
       });
     });
   }
 
-  toggleFollow(): void {
+  toggleFollow() {
     const artist = this.artist();
-    if (!artist) {
-      return;
-    }
+    if (!artist) return;
 
-    if (!this.auth.isLoggedIn()) {
-      void this.router.navigate(['/login']);
-      return;
-    }
+    const isFollowed = this.isFollowed();
+    const req = isFollowed ? this.library.unfollowArtist(artist.id) : this.library.followArtist(artist.id);
 
-    const request = this.following()
-      ? this.library.unfollowArtist(artist.id)
-      : this.library.followArtist(artist.id);
-
-    request.subscribe(() => this.following.update((value) => !value));
+    req.subscribe(() => this.isFollowed.set(!isFollowed));
   }
 }

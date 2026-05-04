@@ -1,54 +1,65 @@
+import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { CatalogService } from '../../core/catalog.service';
-import { Album } from '../../core/models';
+import { SpotifyAlbum, SpotifyTrack } from '../../core/models';
 import { SongRowComponent } from '../../shared/song-row.component';
 
 @Component({
   selector: 'app-album-page',
-  imports: [RouterLink, SongRowComponent],
+  standalone: true,
+  imports: [CommonModule, SongRowComponent],
   template: `
-    @if (album(); as currentAlbum) {
-      <section class="detail-hero">
-        <img class="detail-hero__image" [src]="currentAlbum.coverUrl ?? ''" [alt]="currentAlbum.title" />
+    @if (!album()) {
+      <div class="empty-state">Cargando álbum...</div>
+    } @else {
+      <section class="page-hero page-hero--album">
+        <img
+          class="page-hero__cover"
+          [src]="album()?.images?.[0]?.url ?? ''"
+          [alt]="album()?.name ?? ''"
+        />
         <div>
-          <span class="eyebrow">Album</span>
-          <h1>{{ currentAlbum.title }}</h1>
+          <span class="eyebrow">Álbum</span>
+          <h1>{{ album()?.name }}</h1>
           <p>
-            <a [routerLink]="['/artists', currentAlbum.artist?.id]">{{ currentAlbum.artist?.name }}</a>
-            / {{ currentAlbum.releaseYear }} / {{ currentAlbum.totalTracks }} canciones
+            {{ album()?.artists?.[0]?.name ?? '' }} ·
+            {{ album()?.release_date ?? '' }} ·
+            {{ album()?.total_tracks ?? tracks().length }} canciones
           </p>
         </div>
       </section>
 
       <section class="content-section">
-        <div class="section-heading">
-          <h2>Canciones</h2>
-        </div>
         <div class="song-list">
-          @for (song of currentAlbum.songs ?? []; track song.id; let i = $index) {
-            <app-song-row [song]="song" [index]="i + 1" />
+          @for (track of tracks(); track track.id; let i = $index) {
+            <app-song-row [track]="track" [index]="i + 1" />
           }
         </div>
       </section>
-    } @else {
-      <div class="empty-state">Cargando album...</div>
     }
   `,
 })
 export class AlbumPageComponent {
-  private readonly catalog = inject(CatalogService);
   private readonly route = inject(ActivatedRoute);
+  private readonly catalog = inject(CatalogService);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly album = signal<Album | null>(null);
+  readonly album = signal<SpotifyAlbum | null>(null);
+  readonly tracks = signal<SpotifyTrack[]>([]);
 
   constructor() {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
-      const id = Number(params.get('id'));
-      this.catalog.album(id).subscribe((album) => this.album.set(album));
+      const id = params.get('id');
+      if (!id) return;
+
+      // CatalogService espera ID de Spotify como string
+      this.catalog.album(id).subscribe((response) => {
+        this.album.set(response.album);
+        this.tracks.set(response.tracks);
+      });
     });
   }
 }

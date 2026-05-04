@@ -24,28 +24,32 @@ Route::get('/home', [CatalogController::class, 'home']);
 Route::get('/search', [CatalogController::class, 'search']);
 Route::get('/artists', [CatalogController::class, 'artists']);
 Route::get('/artists/{artist}', [CatalogController::class, 'artist']);
+
+// 🔥 Discover dinámico desde Spotify (no DB)
+Route::get('/spotify/artists/discover', [CatalogController::class, 'discoverArtists']);
 Route::get('/albums', [CatalogController::class, 'albums']);
 Route::get('/albums/{album}', [CatalogController::class, 'album']);
 Route::get('/songs', [CatalogController::class, 'songs']);
 
 Route::middleware('auth.api')->prefix('me')->group(function (): void {
     Route::get('/profile', [ProfileController::class, 'show']);
+    Route::put('/profile', [ProfileController::class, 'update']);
 
     Route::get('/favorites', [LibraryController::class, 'favorites']);
-    Route::put('/favorites/{song}', [LibraryController::class, 'addFavorite']);
-    Route::delete('/favorites/{song}', [LibraryController::class, 'removeFavorite']);
+    Route::post('/favorites', [LibraryController::class, 'addFavorite']);
+    Route::delete('/favorites', [LibraryController::class, 'removeFavorite']);
 
     Route::get('/followed-artists', [LibraryController::class, 'followedArtists']);
-    Route::put('/followed-artists/{artist}', [LibraryController::class, 'followArtist']);
-    Route::delete('/followed-artists/{artist}', [LibraryController::class, 'unfollowArtist']);
+    Route::post('/followed-artists', [LibraryController::class, 'followArtist']);
+    Route::delete('/followed-artists', [LibraryController::class, 'unfollowArtist']);
 
     Route::get('/playlists', [LibraryController::class, 'playlists']);
     Route::post('/playlists', [LibraryController::class, 'createPlaylist']);
     Route::get('/playlists/{playlist}', [LibraryController::class, 'playlist']);
     Route::patch('/playlists/{playlist}', [LibraryController::class, 'updatePlaylist']);
     Route::delete('/playlists/{playlist}', [LibraryController::class, 'deletePlaylist']);
-    Route::put('/playlists/{playlist}/songs/{song}', [LibraryController::class, 'addSongToPlaylist']);
-    Route::delete('/playlists/{playlist}/songs/{song}', [LibraryController::class, 'removeSongFromPlaylist']);
+    Route::post('/playlists/{playlist}/tracks', [LibraryController::class, 'addTrackToPlaylist']);
+    Route::delete('/playlists/{playlist}/tracks', [LibraryController::class, 'removeTrackFromPlaylist']);
 });
 
 Route::middleware(['auth.api', 'admin'])->prefix('admin')->group(function (): void {

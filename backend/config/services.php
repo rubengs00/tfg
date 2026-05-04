@@ -39,10 +39,16 @@ return [
         'client_id' => env('SPOTIFY_CLIENT_ID'),
         'client_secret' => env('SPOTIFY_CLIENT_SECRET'),
         'market' => env('SPOTIFY_MARKET', 'ES'),
-        'seed_artists' => array_values(array_filter(array_map(
-            static fn (string $artist): string => trim($artist),
-            explode(',', (string) env('SPOTIFY_SEED_ARTISTS', 'Rosalia,Quevedo,Bad Bunny,Dua Lipa,The Weeknd'))
-        ))),
+        // SOLO para desarrollo local (Windows/Laragon a veces no tiene CA bundle configurado)
+        'skip_ssl_verify' => env('SPOTIFY_SKIP_SSL_VERIFY', false),
+        // Ruta absoluta a curl.exe (porque el PATH de PHP/Apache puede no incluirlo)
+        'curl_path' => env('SPOTIFY_CURL_PATH', 'curl'),
+        'seed_artists' => [
+            'Rojuu',
+            'Saramalacara',
+            'Maretu',
+            'Radiohead',
+            'Deftones',
+        ],
     ],
-
 ];

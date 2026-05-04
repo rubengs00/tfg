@@ -26,12 +26,13 @@ import { SongRowComponent } from '../../shared/song-row.component';
         <div class="section-heading">
           <h2>Artistas populares</h2>
         </div>
+
         <div class="media-grid">
           @for (artist of data().artists; track artist.id) {
             <app-media-card
               [title]="artist.name"
-              [subtitle]="artist.genre ?? 'Artista'"
-              [imageUrl]="artist.imageUrl"
+              [subtitle]="artist.genres?.[0] ?? 'Artista'"
+              [imageUrl]="artist.images?.[0]?.url ?? null"
               [route]="['/artists', artist.id]"
               kind="artist"
               [round]="true"
@@ -47,9 +48,9 @@ import { SongRowComponent } from '../../shared/song-row.component';
         <div class="media-grid">
           @for (album of data().albums; track album.id) {
             <app-media-card
-              [title]="album.title"
-              [subtitle]="album.artist?.name ?? 'Album'"
-              [imageUrl]="album.coverUrl"
+              [title]="album.name"
+              [subtitle]="album.artists?.[0]?.name ?? 'Album'"
+              [imageUrl]="album.images?.[0]?.url ?? null"
               [route]="['/albums', album.id]"
               kind="album"
             />
@@ -62,8 +63,8 @@ import { SongRowComponent } from '../../shared/song-row.component';
           <h2>Canciones destacadas</h2>
         </div>
         <div class="song-list">
-          @for (song of data().songs; track song.id; let i = $index) {
-            <app-song-row [song]="song" [index]="i + 1" [showAlbum]="true" />
+          @for (track of data().tracks; track track.id; let i = $index) {
+            <app-song-row [track]="track" [index]="i + 1" />
           }
         </div>
       </section>
@@ -75,32 +76,46 @@ export class HomePageComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly data = signal<HomeData>({ artists: [], albums: [], songs: [] });
+  readonly data = signal<HomeData>({
+    source: 'spotify',
+    artists: [],
+    albums: [],
+    tracks: [],
+  });
+
   readonly loading = signal(true);
+
   readonly title = signal('Descubre nueva musica');
-  readonly subtitle = signal('Explora artistas, albumes y previews inspirados en Spotify.');
+  readonly subtitle = signal(
+    'Explora artistas, albumes y previews inspirados en Spotify.'
+  );
 
   constructor() {
-    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
-      const query = params.get('q')?.trim() ?? '';
-      this.loading.set(true);
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        const query = params.get('q')?.trim() ?? '';
+        this.loading.set(true);
 
-      if (query) {
-        this.title.set(`Resultados para "${query}"`);
-        this.subtitle.set('Busqueda local con soporte para Spotify API cuando configures las credenciales.');
-        this.catalog.search(query).subscribe((results) => {
-          this.data.set(results);
+        if (query) {
+          this.title.set(`Resultados para "${query}"`);
+          this.subtitle.set('Busqueda en vivo usando Spotify.');
+          this.catalog.search(query).subscribe((results) => {
+            this.data.set(results);
+            this.loading.set(false);
+          });
+          return;
+        }
+
+        this.title.set('Descubre nueva musica');
+        this.subtitle.set(
+          'Explora artistas, albumes y previews inspirados en Spotify.'
+        );
+
+        this.catalog.home().subscribe((home) => {
+          this.data.set(home);
           this.loading.set(false);
         });
-        return;
-      }
-
-      this.title.set('Descubre nueva musica');
-      this.subtitle.set('Explora artistas, albumes y previews inspirados en Spotify.');
-      this.catalog.home().subscribe((home) => {
-        this.data.set(home);
-        this.loading.set(false);
       });
-    });
   }
 }

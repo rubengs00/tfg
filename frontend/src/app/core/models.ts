@@ -1,3 +1,7 @@
+/* =====================================================
+   GENERIC API HELPERS
+===================================================== */
+
 export interface ApiPage<T> {
   data: T[];
   meta?: {
@@ -9,88 +13,112 @@ export interface ApiPage<T> {
 
 export type ApiList<T> = T[] | ApiPage<T>;
 
+export function unwrapList<T>(value: ApiList<T> | undefined | null): T[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : value.data;
+}
+
+/* =====================================================
+   USER DOMAIN (LOCAL DB)
+===================================================== */
+
 export interface User {
   id: number;
   name: string;
   email: string;
   role: 'user' | 'admin';
-  avatarUrl: string | null;
-  twoFactorEnabled: boolean;
-  isActive: boolean;
-  createdAt?: string;
+  avatar_url: string | null;
+  twoFactorEnabled?: boolean;
+  isActive?: boolean;
 }
 
-export interface Artist {
-  id: number;
-  spotifyId?: string | null;
+/* =====================================================
+   SPOTIFY DOMAIN (REMOTE SOURCE OF TRUTH)
+===================================================== */
+
+export interface SpotifyImage {
+  url: string;
+  width?: number;
+  height?: number;
+}
+
+export interface SpotifyArtist {
+  id: string;
   name: string;
-  slug: string;
-  genre: string | null;
-  followers: number;
-  imageUrl: string | null;
-  bio: string | null;
-  popularity: number;
-  albums?: Album[];
-  isFollowed?: boolean;
+  genres?: string[];
+  popularity?: number;
+  followers?: {
+    total: number;
+  };
+  images?: SpotifyImage[];
 }
 
-export interface Album {
-  id: number;
-  spotifyId?: string | null;
-  artistId: number;
-  title: string;
-  slug: string;
-  coverUrl: string | null;
-  releaseYear: number | null;
-  totalTracks: number;
-  artist?: Artist;
-  songs?: Song[];
+export interface SpotifyAlbum {
+  id: string;
+  name: string;
+  release_date?: string;
+  total_tracks?: number;
+  images?: SpotifyImage[];
+  artists?: SpotifyArtist[];
 }
 
-export interface Song {
-  id: number;
-  spotifyId?: string | null;
-  albumId: number;
-  title: string;
-  durationSeconds: number;
-  previewUrl: string | null;
-  trackNumber: number;
+export interface SpotifyTrack {
+  id: string;
+  name: string;
+  duration_ms: number;
+  preview_url: string | null;
   explicit: boolean;
-  popularity: number;
-  album?: Album;
-  isFavorite?: boolean;
+  popularity?: number;
+  track_number?: number;
+  album?: SpotifyAlbum;
+  artists?: SpotifyArtist[];
 }
+
+/* =====================================================
+   PLAYLISTS (LOCAL STATE + SPOTIFY TRACKS)
+===================================================== */
 
 export interface Playlist {
   id: number;
   name: string;
   description: string | null;
-  coverUrl: string | null;
-  isPublic: boolean;
-  songsCount: number;
-  songs?: Song[];
-  createdAt?: string;
+  created_at?: string;
+
+  // Campos opcionales usados por la UI (pueden venir o no del backend)
+  coverUrl?: string | null;
+  songsCount?: number;
 }
 
-export interface ActivityLog {
-  id: number;
-  action: string;
-  resourceType: string;
-  resourceId: number | null;
-  metadata: Record<string, unknown> | null;
-  user?: User;
-  createdAt: string;
+export interface LoginStartResponse {
+  // Cuando el backend exige 2FA, devuelve estos campos.
+  // Si no exige 2FA, normalmente devuelve SessionResponse (token + user).
+  requiresTwoFactor?: boolean;
+  challengeId?: string;
+  debugCode?: string;
 }
+
+export interface SessionResponse {
+  user: User;
+  token?: string;
+}
+
+/* =====================================================
+   HOME & SEARCH (Spotify-first)
+===================================================== */
 
 export interface HomeData {
-  artists: Artist[];
-  albums: Album[];
-  songs: Song[];
+  source: 'spotify';
+  genre?: string;
+  artists: SpotifyArtist[];
+  albums: SpotifyAlbum[];
+  tracks: SpotifyTrack[];
 }
 
-export interface SearchResults extends HomeData {
-  source: 'local' | 'spotify';
-}
+export interface SearchResults extends HomeData {}
+
+/* =====================================================
+   PROFILE (Hybrid: Local + Spotify)
+===================================================== */
 
 export interface ProfileData {
   user: User;
@@ -99,35 +127,17 @@ export interface ProfileData {
     favorites: number;
     followedArtists: number;
   };
-  followedArtists: Artist[];
   playlists: Playlist[];
-  favoriteSongs: Song[];
+  favoriteTracks: SpotifyTrack[];
+  followedArtists: SpotifyArtist[];
 }
 
-export interface LoginStartResponse {
-  message: string;
-  requiresTwoFactor: true;
-  challengeId: string;
-  expiresAt: string;
-  debugCode: string | null;
-}
+/* =====================================================
+   UTILITIES
+===================================================== */
 
-export interface SessionResponse {
-  token: string;
-  tokenType: 'Bearer';
-  expiresAt: string;
-  user: User;
-}
-
-export function unwrapList<T>(value: ApiList<T> | undefined | null): T[] {
-  if (!value) {
-    return [];
-  }
-
-  return Array.isArray(value) ? value : value.data;
-}
-
-export function formatDuration(seconds: number): string {
+export function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
   return `${minutes}:${rest.toString().padStart(2, '0')}`;

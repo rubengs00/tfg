@@ -3,40 +3,57 @@ import { inject, Injectable } from '@angular/core';
 import { map } from 'rxjs';
 
 import { API_BASE_URL } from './api';
-import { Album, ApiList, Artist, HomeData, SearchResults, Song, unwrapList } from './models';
+import {
+  HomeData,
+  SearchResults,
+  SpotifyAlbum,
+  SpotifyArtist,
+  SpotifyTrack,
+} from './models';
 
 @Injectable({ providedIn: 'root' })
 export class CatalogService {
   private readonly http = inject(HttpClient);
 
+  /* =====================================================
+     HOME (Spotify-first)
+  ===================================================== */
+
   home() {
-    return this.http.get<{ artists: ApiList<Artist>; albums: ApiList<Album>; songs: ApiList<Song> }>(`${API_BASE_URL}/home`)
-      .pipe(map((data) => this.normalizeHome(data)));
+    return this.http
+      .get<HomeData>(`${API_BASE_URL}/home`);
   }
+
+  /* =====================================================
+     SEARCH
+  ===================================================== */
 
   search(query: string) {
-    return this.http.get<{ source: 'local' | 'spotify'; artists: ApiList<Artist>; albums: ApiList<Album>; songs: ApiList<Song> }>(`${API_BASE_URL}/search`, {
-      params: { q: query },
-    }).pipe(map((data) => ({ source: data.source, ...this.normalizeHome(data) }) satisfies SearchResults));
+    return this.http
+      .get<SearchResults>(`${API_BASE_URL}/search`, {
+        params: { q: query },
+      });
   }
 
-  artist(id: number) {
-    return this.http.get<Artist>(`${API_BASE_URL}/artists/${id}`);
+  /* =====================================================
+     ARTIST
+  ===================================================== */
+
+  artist(id: string) {
+    return this.http.get<{
+      artist: SpotifyArtist;
+      albums: SpotifyAlbum[];
+    }>(`${API_BASE_URL}/artists/${id}`);
   }
 
-  album(id: number) {
-    return this.http.get<Album>(`${API_BASE_URL}/albums/${id}`);
-  }
+  /* =====================================================
+     ALBUM
+  ===================================================== */
 
-  songs() {
-    return this.http.get<ApiList<Song>>(`${API_BASE_URL}/songs`).pipe(map(unwrapList));
-  }
-
-  private normalizeHome(data: { artists: ApiList<Artist>; albums: ApiList<Album>; songs: ApiList<Song> }): HomeData {
-    return {
-      artists: unwrapList(data.artists),
-      albums: unwrapList(data.albums),
-      songs: unwrapList(data.songs),
-    };
+  album(id: string) {
+    return this.http.get<{
+      album: SpotifyAlbum;
+      tracks: SpotifyTrack[];
+    }>(`${API_BASE_URL}/albums/${id}`);
   }
 }

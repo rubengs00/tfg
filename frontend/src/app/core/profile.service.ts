@@ -11,4 +11,11 @@ export class ProfileService {
   profile() {
     return this.http.get<ProfileData>(`${API_BASE_URL}/me/profile`);
   }
+
+  updateProfile(formData: FormData) {
+    // 🔥 Igual que playlists: multipart + Laravel -> usar POST + _method
+    formData.append('_method', 'PUT');
+
+    return this.http.post(`${API_BASE_URL}/me/profile`, formData);
+  }
 }
