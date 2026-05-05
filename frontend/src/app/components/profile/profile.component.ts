@@ -1,10 +1,9 @@
-﻿import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 
-import { AuthService } from '../../core/auth.service';
-import { LibraryService } from '../../core/library.service';
-import { ProfileData } from '../../core/models';
-import { ProfileService } from '../../core/profile.service';
+import { AuthService } from '../../services/auth.service';
+import { LibraryService } from '../../services/library.service';
+import { ProfileData } from '../../interfaces/music.interfaces';
+import { ProfileService } from '../../services/profile.service';
 import { MediaCardComponent } from '../media-card/media-card.component';
 import { SongRowComponent } from '../song-row/song-row.component';
 import { ProfileEditModalComponent } from '../profile-edit-modal/profile-edit-modal.component';
@@ -12,7 +11,7 @@ import { ProfileEditModalComponent } from '../profile-edit-modal/profile-edit-mo
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, MediaCardComponent, SongRowComponent, ProfileEditModalComponent],
+  imports: [MediaCardComponent, SongRowComponent, ProfileEditModalComponent],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss',
 })
@@ -43,6 +42,3 @@ export class ProfileComponent {
     this.library.followedArtists().subscribe();
   }
 }
-
-
-

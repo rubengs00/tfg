@@ -1,4 +1,4 @@
-﻿.admin-dashboard {
+.admin-dashboard {
   width: min(1180px, 100%);
   display: grid;
   grid-template-columns: 210px minmax(0, 1fr);
@@ -20,7 +20,7 @@
 }
 
 .admin-rail h1,
-.admin-hero h2,
+.admin-header h2,
 .panel-title h3,
 .admin-table-header h3,
 .admin-log-toolbar h3 {
@@ -64,7 +64,7 @@
   min-width: 0;
 }
 
-.admin-hero {
+.admin-header {
   min-height: 132px;
   display: flex;
   align-items: center;
@@ -78,19 +78,19 @@
     #171b19;
 }
 
-.admin-hero h2 {
+.admin-header h2 {
   margin-top: 5px;
   font-size: clamp(32px, 4vw, 52px);
   line-height: 1;
 }
 
-.admin-hero p {
+.admin-header p {
   max-width: 640px;
   margin: 10px 0 0;
   color: var(--color-muted);
 }
 
-.admin-hero__badge {
+.admin-header__badge {
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -755,7 +755,7 @@
 }
 
 @media (max-width: 640px) {
-  .admin-hero,
+  .admin-header,
   .panel-title,
   .admin-table-header,
   .admin-log-toolbar {
@@ -778,4 +778,3 @@
     padding: 10px;
   }
 }
-

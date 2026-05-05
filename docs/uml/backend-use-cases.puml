@@ -1,0 +1,39 @@
+@startuml
+left to right direction
+actor Usuario
+actor Administrador
+actor Spotify
+actor Correo
+
+rectangle "Backend Laravel" {
+  usecase "Registrar usuario" as B1
+  usecase "Autenticar usuario" as B2
+  usecase "Emitir token" as B3
+  usecase "Generar codigo 2FA" as B4
+  usecase "Enviar codigo 2FA" as B5
+  usecase "Sincronizar catalogo" as B6
+  usecase "Persistir biblioteca" as B7
+  usecase "Gestionar playlists" as B8
+  usecase "Registrar actividad" as B9
+  usecase "Administrar usuarios" as B10
+  usecase "Consultar estadisticas" as B11
+  usecase "Consultar logs" as B12
+}
+
+Usuario --> B1
+Usuario --> B2
+Usuario --> B7
+Usuario --> B8
+Administrador --> B10
+Administrador --> B11
+Administrador --> B12
+Spotify --> B6
+Correo --> B5
+B1 ..> B4 : include
+B2 ..> B4 : include
+B4 ..> B5 : include
+B2 ..> B3 : include
+B7 ..> B9 : include
+B8 ..> B9 : include
+B10 ..> B9 : include
+@enduml

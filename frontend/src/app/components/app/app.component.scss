@@ -12,10 +12,6 @@
   padding-bottom: var(--player-height);
 }
 
-/* ===========================
-   EDIT PAGES - GLOBAL STYLES
-   =========================== */
-
 .form-section {
   display: flex;
   justify-content: center;
@@ -87,12 +83,6 @@
   align-items: center;
   gap: 12px;
 }
-
-/* ======================
-   MODAL STYLE EDIT UI
-   ====================== */
-
-/* (legacy modal styles removed - using spotify-modal classes instead) */
 
 .edit-header {
   display: flex;

@@ -1,4 +1,4 @@
-﻿import { Component, effect, inject } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
@@ -13,12 +13,13 @@ import {
   UserRound,
 } from 'lucide-angular';
 
-import { AuthService } from '../../core/auth.service';
-import { LibraryService } from '../../core/library.service';
+import { AuthService } from '../../services/auth.service';
+import { LibraryService } from '../../services/library.service';
 import { AudioPlayerComponent } from '../audio-player/audio-player.component';
 
 @Component({
   selector: 'app-root',
+  standalone: true,
   imports: [
     AudioPlayerComponent,
     FormsModule,
@@ -68,4 +69,3 @@ export class AppComponent {
     this.auth.logout().subscribe(() => void this.router.navigate(['/']));
   }
 }
-

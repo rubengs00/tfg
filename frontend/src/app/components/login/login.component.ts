@@ -1,12 +1,13 @@
-﻿import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { KeyRound, LogIn, LucideAngularModule } from 'lucide-angular';
 
-import { AuthService } from '../../core/auth.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login',
+  standalone: true,
   imports: [FormsModule, LucideAngularModule, RouterLink],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
@@ -123,6 +124,3 @@ export class LoginComponent {
     return error?.error?.message ?? fallback;
   }
 }
-
-
-

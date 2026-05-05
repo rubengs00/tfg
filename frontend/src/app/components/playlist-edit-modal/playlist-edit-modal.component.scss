@@ -1,6 +1,4 @@
-﻿/* ==============================
-   SPOTIFY EDIT PLAYLIST MODAL
-   ============================== */
+
 
 .spotify-modal-overlay {
   position: fixed;
@@ -25,8 +23,6 @@
   color: #fff;
   animation: modalIn 0.18s ease-out;
 }
-
-/* ---------- HEADER ---------- */
 
 .spotify-modal .edit-header {
   display: flex;
@@ -54,16 +50,12 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* ---------- BODY LAYOUT ---------- */
-
 .spotify-modal .edit-body {
   display: grid;
   grid-template-columns: 180px 1fr;
   gap: 28px;
   align-items: start;
 }
-
-/* ---------- COVER BLOCK ---------- */
 
 .spotify-modal .edit-image-block {
   display: flex;
@@ -106,8 +98,6 @@
   opacity: 0.55;
 }
 
-/* ---------- INPUTS ---------- */
-
 .spotify-modal .edit-fields {
   display: flex;
   flex-direction: column;
@@ -143,8 +133,6 @@
   font-size: 13px;
 }
 
-/* ---------- FOOTER ---------- */
-
 .spotify-modal .edit-footer {
   display: flex;
   justify-content: flex-end;
@@ -178,8 +166,6 @@
   transform: none;
 }
 
-/* ---------- PLAYLIST DETAIL ---------- */
-
 .spotify-modal--playlist-detail {
   max-width: 940px;
   max-height: min(820px, calc(100vh - 48px));
@@ -188,7 +174,7 @@
   flex-direction: column;
 }
 
-.playlist-modal-hero {
+.playlist-modal-summary {
   display: grid;
   grid-template-columns: 186px minmax(0, 1fr);
   gap: 26px;
@@ -270,7 +256,7 @@
   }
 
   .spotify-modal .edit-body,
-  .playlist-modal-hero {
+  .playlist-modal-summary {
     grid-template-columns: 1fr;
   }
 
@@ -284,8 +270,6 @@
   }
 }
 
-/* ---------- ANIMATION ---------- */
-
 @keyframes modalIn {
   from {
     transform: translateY(8px) scale(0.96);
@@ -296,4 +280,3 @@
     opacity: 1;
   }
 }
-

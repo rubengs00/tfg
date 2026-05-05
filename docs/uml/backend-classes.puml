@@ -1,0 +1,43 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class AuthController
+class CatalogController
+class LibraryController
+class ProfileController
+class AdminController
+class SpotifyCatalogService
+class ActivityLogService
+class User
+class ApiToken
+class TwoFactorChallenge
+class Artist
+class Album
+class Song
+class Playlist
+class ActivityLog
+class UserResource
+class PlaylistResource
+class ActivityLogResource
+
+AuthController --> User
+AuthController --> ApiToken
+AuthController --> TwoFactorChallenge
+AuthController --> ActivityLogService
+CatalogController --> SpotifyCatalogService
+LibraryController --> SpotifyCatalogService
+LibraryController --> ActivityLogService
+ProfileController --> SpotifyCatalogService
+AdminController --> SpotifyCatalogService
+AdminController --> ActivityLogService
+User "1" --> "*" Playlist
+User "*" --> "*" Song
+User "*" --> "*" Artist
+Playlist "*" --> "*" Song
+Artist "1" --> "*" Album
+Album "1" --> "*" Song
+ActivityLog "*" --> "0..1" User
+UserResource ..> User
+PlaylistResource ..> Playlist
+ActivityLogResource ..> ActivityLog
+@enduml

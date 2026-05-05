@@ -11,9 +11,7 @@ use Throwable;
 
 class LogFailedApiRequests
 {
-    /**
-     * @param  Closure(Request): Response  $next
-     */
+
     public function handle(Request $request, Closure $next): Response
     {
         try {
@@ -53,7 +51,6 @@ class LogFailedApiRequests
                 ],
             ]);
         } catch (Throwable) {
-            //
         }
     }
 

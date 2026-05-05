@@ -3,7 +3,7 @@ import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 
 import { routes } from './app.routes';
-import { authInterceptor } from './core/api';
+import { authInterceptor } from './config/api.config';
 
 export const appConfig: ApplicationConfig = {
   providers: [

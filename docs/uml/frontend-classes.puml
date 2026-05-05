@@ -1,0 +1,42 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class AppComponent
+class HomeComponent
+class ArtistComponent
+class AlbumComponent
+class FavoritesComponent
+class PlaylistsComponent
+class ProfileComponent
+class AdminComponent
+class AudioPlayerComponent
+class SongRowComponent
+class MediaCardComponent
+class AuthService
+class CatalogService
+class LibraryService
+class ProfileService
+class AdminService
+class PlayerService
+interface User
+interface SpotifyTrack
+interface Playlist
+interface AdminStatsResponse
+
+AppComponent --> AudioPlayerComponent
+HomeComponent --> MediaCardComponent
+HomeComponent --> SongRowComponent
+ArtistComponent --> MediaCardComponent
+AlbumComponent --> SongRowComponent
+FavoritesComponent --> SongRowComponent
+PlaylistsComponent --> LibraryService
+ProfileComponent --> ProfileService
+AdminComponent --> AdminService
+SongRowComponent --> PlayerService
+SongRowComponent --> LibraryService
+AudioPlayerComponent --> PlayerService
+AuthService ..> User
+CatalogService ..> SpotifyTrack
+LibraryService ..> Playlist
+AdminService ..> AdminStatsResponse
+@enduml

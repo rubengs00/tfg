@@ -1,6 +1,6 @@
-﻿<section class="page-hero page-hero--profile">
-  <div class="profile-hero">
-    <div class="profile-hero__avatar">
+<section class="page-header profile">
+  <div class="profile-summary">
+    <div class="profile-summary__avatar">
       @if (auth.user()?.avatarUrl) {
         <img [src]="auth.user()!.avatarUrl!" [alt]="auth.user()!.name" />
       } @else {
@@ -8,14 +8,14 @@
       }
     </div>
 
-    <div class="profile-hero__meta">
+    <div class="profile-summary__meta">
       <span class="eyebrow">Perfil</span>
       <h1>{{ auth.user()?.name ?? 'Perfil' }}</h1>
 
       @if (data(); as d) {
         <p>
-          {{ d.playlists.length }} playlists Â·
-          {{ favoriteTracks().length }} favoritas Â·
+          {{ d.playlists.length }} playlists ·
+          {{ favoriteTracks().length }} favoritas ·
           {{ followedArtists().length }} artistas seguidos
         </p>
       }
@@ -75,4 +75,3 @@
 @if (editing()) {
   <app-profile-edit-modal (closed)="editing.set(false)" />
 }
-

@@ -1,13 +1,12 @@
-﻿import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 
-import { LibraryService } from '../../core/library.service';
+import { LibraryService } from '../../services/library.service';
 import { SongRowComponent } from '../song-row/song-row.component';
 
 @Component({
   selector: 'app-favorites',
   standalone: true,
-  imports: [CommonModule, SongRowComponent],
+  imports: [SongRowComponent],
   templateUrl: './favorites.component.html',
   styleUrl: './favorites.component.scss',
 })
@@ -24,6 +23,3 @@ export class FavoritesComponent {
     });
   }
 }
-
-
-

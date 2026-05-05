@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table): void {
             $table->string('role')->default('user')->index();
             $table->string('avatar_url')->nullable();
-            $table->boolean('two_factor_enabled')->default(true);
+            $table->boolean('two_factor_enabled')->default(false);
             $table->boolean('is_active')->default(true);
         });
     }

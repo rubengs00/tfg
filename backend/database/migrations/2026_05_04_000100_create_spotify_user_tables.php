@@ -8,10 +8,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // IMPORTANTE:
-        // Las tablas "favorites" y "followed_artists" ya se crean en
-        // 2026_04_27_000002_create_musichub_tables.php
-        // Aquí SOLO definimos la tabla nueva "playlist_tracks".
 
         Schema::create('playlist_tracks', function (Blueprint $table) {
             $table->id();

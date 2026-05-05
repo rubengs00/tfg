@@ -1,10 +1,9 @@
-﻿import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Music2, Pencil, Plus, Trash2 } from 'lucide-angular';
 
-import { LibraryService } from '../../core/library.service';
-import { Playlist, PlaylistDetail, SpotifyTrack } from '../../core/models';
+import { LibraryService } from '../../services/library.service';
+import { Playlist, PlaylistDetail, SpotifyTrack } from '../../interfaces/music.interfaces';
 import { PlaylistDetailModalComponent } from '../playlist-detail-modal/playlist-detail-modal.component';
 import { PlaylistEditModalComponent } from '../playlist-edit-modal/playlist-edit-modal.component';
 
@@ -12,7 +11,6 @@ import { PlaylistEditModalComponent } from '../playlist-edit-modal/playlist-edit
   selector: 'app-playlists',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     LucideAngularModule,
     PlaylistDetailModalComponent,
@@ -127,6 +125,3 @@ export class PlaylistsComponent {
     );
   }
 }
-
-
-

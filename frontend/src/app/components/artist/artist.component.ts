@@ -1,18 +1,18 @@
-﻿import { CommonModule } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 
-import { AuthService } from '../../core/auth.service';
-import { CatalogService } from '../../core/catalog.service';
-import { LibraryService } from '../../core/library.service';
-import { SpotifyAlbum, SpotifyArtist } from '../../core/models';
+import { AuthService } from '../../services/auth.service';
+import { CatalogService } from '../../services/catalog.service';
+import { LibraryService } from '../../services/library.service';
+import { SpotifyAlbum, SpotifyArtist } from '../../interfaces/music.interfaces';
 import { MediaCardComponent } from '../media-card/media-card.component';
 
 @Component({
   selector: 'app-artist',
   standalone: true,
-  imports: [CommonModule, MediaCardComponent],
+  imports: [DecimalPipe, MediaCardComponent],
   templateUrl: './artist.component.html',
   styleUrl: './artist.component.scss',
 })
@@ -94,6 +94,3 @@ export class ArtistComponent {
     });
   }
 }
-
-
-

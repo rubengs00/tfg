@@ -7,27 +7,35 @@ use Illuminate\Console\Command;
 
 class SyncSpotifyCatalog extends Command
 {
-    protected $signature = 'musichub:sync {--albums=3 : Number of albums per artist}';
-    protected $description = 'Synchronize Spotify seed catalog into local database';
+    protected $signature = 'spotify:sync-catalog {--artist=* : Artist names or Spotify artist IDs} {--albums=3 : Albums or singles to import per artist}';
+    protected $description = 'Import artists, albums and songs from Spotify into the local catalog';
 
     public function handle(SpotifyCatalogService $spotify): int
     {
         if (! $spotify->enabled()) {
-            $this->error('Spotify credentials are not configured.');
+            $this->error('Configura SPOTIFY_CLIENT_ID y SPOTIFY_CLIENT_SECRET antes de sincronizar el catalogo.');
             return self::FAILURE;
         }
 
-        $albumsPerArtist = (int) $this->option('albums');
+        $artistOptions = collect((array) $this->option('artist'))
+            ->map(fn (mixed $artist): string => trim((string) $artist))
+            ->filter()
+            ->values()
+            ->all();
 
-        $this->info('Starting Spotify catalog synchronization...');
+        $albumsPerArtist = max((int) $this->option('albums'), 1);
 
-        $result = $spotify->syncSeedCatalog(null, $albumsPerArtist);
+        $result = $spotify->syncSeedCatalog(
+            $artistOptions !== [] ? $artistOptions : null,
+            $albumsPerArtist
+        );
 
-        $this->info("Artists synced: {$result['artists']}");
-        $this->info("Albums synced: {$result['albums']}");
-        $this->info("Songs synced: {$result['songs']}");
-
-        $this->info('Synchronization completed.');
+        $this->info(sprintf(
+            'Catalogo sincronizado desde Spotify: %d artistas, %d albumes y %d canciones.',
+            $result['artists'],
+            $result['albums'],
+            $result['songs'],
+        ));
 
         return self::SUCCESS;
     }

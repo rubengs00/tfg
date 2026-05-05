@@ -1,14 +1,15 @@
-﻿import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 
-import { CatalogService } from '../../core/catalog.service';
-import { HomeData } from '../../core/models';
+import { CatalogService } from '../../services/catalog.service';
+import { HomeData } from '../../interfaces/music.interfaces';
 import { MediaCardComponent } from '../media-card/media-card.component';
 import { SongRowComponent } from '../song-row/song-row.component';
 
 @Component({
   selector: 'app-home',
+  standalone: true,
   imports: [MediaCardComponent, SongRowComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
@@ -61,6 +62,3 @@ export class HomeComponent {
       });
   }
 }
-
-
-

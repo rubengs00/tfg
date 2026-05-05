@@ -1,10 +1,10 @@
 <?php
 
-use App\Http\Controllers\AdminController;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\CatalogController;
-use App\Http\Controllers\LibraryController;
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Catalog\CatalogController;
+use App\Http\Controllers\Library\LibraryController;
+use App\Http\Controllers\Profile\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', fn () => ['status' => 'ok', 'app' => config('app.name')]);

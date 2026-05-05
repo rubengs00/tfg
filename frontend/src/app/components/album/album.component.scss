@@ -1,11 +1,27 @@
-﻿
-.page-hero--album {
+
+.album {
   align-items: end;
 }
 
+.album__cover {
+  width: 190px;
+  height: 190px;
+  flex: 0 0 190px;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 8px;
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.34);
+  background: var(--color-surface);
+}
+
 @media (max-width: 760px) {
-  .page-hero--album {
+  .album {
     grid-template-columns: 1fr;
     align-items: start;
+  }
+
+  .album__cover {
+    width: min(190px, 56vw);
+    height: min(190px, 56vw);
   }
 }

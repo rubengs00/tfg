@@ -1,12 +1,13 @@
-﻿import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { KeyRound, LucideAngularModule, UserPlus } from 'lucide-angular';
 
-import { AuthService } from '../../core/auth.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-register',
+  standalone: true,
   imports: [FormsModule, LucideAngularModule, RouterLink],
   templateUrl: './register.component.html',
   styleUrl: './register.component.scss',
@@ -181,6 +182,3 @@ export class RegisterComponent {
     this.error.set('');
   }
 }
-
-
-

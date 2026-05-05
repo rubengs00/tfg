@@ -1,4 +1,4 @@
-﻿<a class="media-card" [routerLink]="route()" [class.media-card--round]="round()">
+<a class="media-card" [routerLink]="route()" [class.media-card--round]="round()">
   <div class="media-card__art" [class.media-card__art--round]="round()">
     @if (imageUrl()) {
       <img
@@ -13,4 +13,3 @@
   <strong>{{ title() }}</strong>
   <span>{{ subtitle() }}</span>
 </a>
-

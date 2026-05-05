@@ -1,4 +1,3 @@
-﻿import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -20,8 +19,8 @@ import {
   X,
 } from 'lucide-angular';
 
-import { AdminService } from '../../core/admin.service';
-import { AuthService } from '../../core/auth.service';
+import { AdminService } from '../../services/admin.service';
+import { AuthService } from '../../services/auth.service';
 import {
   ActivityEvent,
   AdminStatsResponse,
@@ -29,7 +28,7 @@ import {
   Playlist,
   PlaylistDetail,
   User,
-} from '../../core/models';
+} from '../../interfaces/music.interfaces';
 import { SongRowComponent } from '../song-row/song-row.component';
 
 type AdminTab = 'stats' | 'users' | 'logs';
@@ -62,7 +61,8 @@ interface UserDraft {
 
 @Component({
   selector: 'app-admin',
-  imports: [CommonModule, FormsModule, LucideAngularModule, SongRowComponent],
+  standalone: true,
+  imports: [FormsModule, LucideAngularModule, SongRowComponent],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss',
 })
@@ -146,13 +146,13 @@ export class AdminComponent {
     this.refresh();
   }
 
-  heroTitle(): string {
+  headerTitle(): string {
     if (this.activeTab() === 'users') return 'Gestion de usuarios';
     if (this.activeTab() === 'logs') return 'Logs y errores';
     return 'Panel de analiticas';
   }
 
-  heroText(): string {
+  headerText(): string {
     if (this.activeTab() === 'users') {
       return 'Edita perfiles, revisa bibliotecas y controla roles o accesos desde un unico sitio.';
     }
@@ -613,6 +613,3 @@ export class AdminComponent {
     return error?.error?.message ?? fallback;
   }
 }
-
-
-

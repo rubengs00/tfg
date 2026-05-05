@@ -1,14 +1,15 @@
-﻿import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Heart, LucideAngularModule, Play, Plus, Volume2, VolumeX } from 'lucide-angular';
 
-import { AuthService } from '../../core/auth.service';
-import { LibraryService } from '../../core/library.service';
-import { formatDuration, SpotifyTrack } from '../../core/models';
-import { PlayerService } from '../../core/player.service';
+import { AuthService } from '../../services/auth.service';
+import { LibraryService } from '../../services/library.service';
+import { formatDuration, SpotifyTrack } from '../../interfaces/music.interfaces';
+import { PlayerService } from '../../services/player.service';
 
 @Component({
   selector: 'app-song-row',
+  standalone: true,
   imports: [LucideAngularModule, RouterLink],
   templateUrl: './song-row.component.html',
   styleUrl: './song-row.component.scss',
@@ -99,6 +100,3 @@ export class SongRowComponent {
       });
   }
 }
-
-
-

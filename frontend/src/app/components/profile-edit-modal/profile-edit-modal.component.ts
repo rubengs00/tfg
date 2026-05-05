@@ -1,9 +1,9 @@
-﻿import { Component, EventEmitter, Output, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { AuthService } from '../../core/auth.service';
-import { User } from '../../core/models';
-import { ProfileService } from '../../core/profile.service';
+import { AuthService } from '../../services/auth.service';
+import { User } from '../../interfaces/music.interfaces';
+import { ProfileService } from '../../services/profile.service';
 
 @Component({
   selector: 'app-profile-edit-modal',
@@ -16,7 +16,7 @@ export class ProfileEditModalComponent {
   private readonly profileService = inject(ProfileService);
   readonly auth = inject(AuthService);
 
-  @Output() closed = new EventEmitter<void>();
+  readonly closed = output<void>();
 
   readonly name = signal('');
   readonly avatarFile = signal<File | null>(null);
@@ -120,6 +120,3 @@ export class ProfileEditModalComponent {
     this.avatarFile.set(null);
   }
 }
-
-
-

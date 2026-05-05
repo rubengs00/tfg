@@ -52,7 +52,7 @@ class MusicHubApiTest extends TestCase
             ->assertJsonPath('stats.playlists', 1);
     }
 
-    public function test_register_creates_a_user_and_requires_two_factor_before_session(): void
+    public function test_register_creates_a_user_and_returns_session_without_two_factor_by_default(): void
     {
         $response = $this->postJson('/api/auth/register', [
             'name' => 'Nuevo Usuario',
@@ -63,6 +63,41 @@ class MusicHubApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('user.email', 'nuevo@musichub.local')
             ->assertJsonPath('user.role', 'user')
+            ->assertJsonPath('user.twoFactorEnabled', false)
+            ->assertJsonStructure(['token', 'tokenType', 'expiresAt', 'user'])
+            ->json();
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'nuevo@musichub.local',
+            'role' => 'user',
+            'two_factor_enabled' => false,
+            'is_active' => true,
+        ]);
+
+        $this->assertDatabaseCount('api_tokens', 1);
+        $this->assertDatabaseCount('two_factor_challenges', 0);
+        $this->assertTrue(ApiToken::query()->where('token_hash', hash('sha256', $response['token']))->exists());
+
+        $this->withToken($response['token'])
+            ->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('email', 'nuevo@musichub.local');
+    }
+
+    public function test_login_requires_two_factor_when_user_has_it_enabled(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Usuario Dos Factores',
+            'email' => 'mfa@musichub.local',
+            'two_factor_enabled' => true,
+        ]);
+
+        $response = $this->postJson('/api/auth/login', [
+            'email' => 'mfa@musichub.local',
+            'password' => 'password',
+        ])
+            ->assertOk()
+            ->assertJsonPath('user.email', 'mfa@musichub.local')
             ->assertJsonPath('user.twoFactorEnabled', true)
             ->assertJsonPath('requiresTwoFactor', true)
             ->assertJsonStructure([
@@ -75,10 +110,8 @@ class MusicHubApiTest extends TestCase
             ]);
 
         $this->assertDatabaseHas('users', [
-            'email' => 'nuevo@musichub.local',
-            'role' => 'user',
+            'id' => $user->id,
             'two_factor_enabled' => true,
-            'is_active' => true,
         ]);
 
         $this->assertDatabaseCount('api_tokens', 0);
@@ -124,7 +157,7 @@ class MusicHubApiTest extends TestCase
             'code' => $resend['debugCode'],
         ])
             ->assertOk()
-            ->assertJsonPath('user.email', 'nuevo@musichub.local')
+            ->assertJsonPath('user.email', 'mfa@musichub.local')
             ->assertJsonStructure(['token', 'tokenType', 'expiresAt', 'user'])
             ->json();
 
@@ -135,7 +168,7 @@ class MusicHubApiTest extends TestCase
         $this->withToken($session['token'])
             ->getJson('/api/auth/me')
             ->assertOk()
-            ->assertJsonPath('email', 'nuevo@musichub.local');
+            ->assertJsonPath('email', 'mfa@musichub.local');
     }
 
     public function test_admin_stats_are_protected(): void
@@ -581,7 +614,6 @@ class MusicHubApiTest extends TestCase
             'expires_at' => now()->addHour(),
         ]);
 
-        // Actualizar nombre con POST + _method=PUT (como lo hace Angular)
         $response = $this->withToken($token)
             ->postJson('/api/me/profile', [
                 'name' => 'Nuevo Nombre',
@@ -591,19 +623,16 @@ class MusicHubApiTest extends TestCase
             ->assertJsonPath('user.name', 'Nuevo Nombre')
             ->assertJsonPath('message', 'Perfil actualizado correctamente');
 
-        // Verificar que el cambio se guardó en BD
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
             'name' => 'Nuevo Nombre',
         ]);
 
-        // Verificar que al obtener el perfil, refleja el cambio
         $this->withToken($token)
             ->getJson('/api/me/profile')
             ->assertOk()
             ->assertJsonPath('user.name', 'Nuevo Nombre');
 
-        // Prueba 2: Cambiar nombre nuevamente
         $response2 = $this->withToken($token)
             ->postJson('/api/me/profile', [
                 'name' => 'Nombre Actualizado Dos Veces',

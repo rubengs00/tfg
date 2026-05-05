@@ -1,9 +1,10 @@
-﻿import { Component, computed, input } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Disc3, LucideAngularModule, Music2, UserRound } from 'lucide-angular';
 
 @Component({
   selector: 'app-media-card',
+  standalone: true,
   imports: [RouterLink, LucideAngularModule],
   templateUrl: './media-card.component.html',
   styleUrl: './media-card.component.scss',
@@ -23,7 +24,6 @@ export class MediaCardComponent {
     const url = this.imageUrl();
     if (!url) return null;
 
-    // evitar duplicar ?v si ya existe
     if (url.includes('?')) return url;
 
     return url + '?v=' + this.cacheBuster;
@@ -37,6 +37,3 @@ export class MediaCardComponent {
     return this.kind() === 'playlist' ? this.icons.Music2 : this.icons.Disc3;
   });
 }
-
-
-

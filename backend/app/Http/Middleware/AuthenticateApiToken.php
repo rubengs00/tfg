@@ -10,9 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticateApiToken
 {
-    /**
-     * @param  Closure(Request): Response  $next
-     */
+
     public function handle(Request $request, Closure $next): Response
     {
         $plainToken = $request->bearerToken();

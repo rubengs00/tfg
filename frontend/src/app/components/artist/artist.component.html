@@ -1,10 +1,10 @@
-﻿@if (error()) {
+@if (error()) {
   <div class="empty-state">{{ error() }}</div>
 } @else if (!artist()) {
   <div class="empty-state">Cargando artista...</div>
 } @else {
-  <section class="artist-hero">
-    <div class="artist-hero__image">
+  <section class="artist">
+    <div class="artist__image">
       @if (artist()?.images?.[0]?.url) {
         <img [src]="artist()!.images![0]!.url" [alt]="artist()?.name ?? ''" />
       } @else {
@@ -12,17 +12,17 @@
       }
     </div>
 
-    <div class="artist-hero__meta">
+    <div class="artist__meta">
       <span class="eyebrow">Artista</span>
       <h1>{{ artist()?.name }}</h1>
 
-      <div class="artist-hero__stats">
+      <div class="artist__stats">
         <span>{{ artist()?.followers?.total ?? 0 | number }} seguidores</span>
         <span>{{ artist()?.genres?.[0] ?? 'Artista' }}</span>
       </div>
 
       <button
-        class="primary-button artist-follow-button"
+        class="primary-button artist__follow"
         [class.is-followed]="isFollowed()"
         type="button"
         (click)="toggleFollow()"
@@ -32,7 +32,7 @@
     </div>
   </section>
 
-  <section class="content-section artist-content">
+  <section class="content-section artist-albums">
     <div class="section-heading">
       <h2>Albumes</h2>
       <span>{{ albums().length }} publicados</span>
@@ -55,4 +55,3 @@
     }
   </section>
 }
-

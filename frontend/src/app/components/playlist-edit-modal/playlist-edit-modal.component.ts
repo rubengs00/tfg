@@ -1,8 +1,8 @@
-﻿import { Component, EventEmitter, Input, Output, inject, signal } from '@angular/core';
+import { Component, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { LibraryService } from '../../core/library.service';
-import { Playlist } from '../../core/models';
+import { LibraryService } from '../../services/library.service';
+import { Playlist } from '../../interfaces/music.interfaces';
 
 @Component({
   selector: 'app-playlist-edit-modal',
@@ -13,27 +13,9 @@ import { Playlist } from '../../core/models';
 })
 export class PlaylistEditModalComponent {
   private readonly library = inject(LibraryService);
-  private _playlist: Playlist | null = null;
-
-  @Input()
-  set playlist(value: Playlist | null) {
-    this._playlist = value;
-
-    if (!value) return;
-
-    this.name = value.name ?? '';
-    this.description = value.description ?? '';
-    this.coverPreview.set(value.coverUrl ?? null);
-    this.coverFile.set(null);
-    this.error.set(null);
-  }
-
-  get playlist(): Playlist | null {
-    return this._playlist;
-  }
-
-  @Output() closed = new EventEmitter<void>();
-  @Output() updated = new EventEmitter<Playlist>();
+  readonly playlist = input<Playlist | null>(null);
+  readonly closed = output<void>();
+  readonly updated = output<Playlist>();
 
   name = '';
   description = '';
@@ -42,6 +24,18 @@ export class PlaylistEditModalComponent {
   readonly coverPreview = signal<string | null>(null);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  private readonly syncPlaylist = effect(() => {
+    const playlist = this.playlist();
+
+    if (!playlist) return;
+
+    this.name = playlist.name ?? '';
+    this.description = playlist.description ?? '';
+    this.coverPreview.set(playlist.coverUrl ?? null);
+    this.coverFile.set(null);
+    this.error.set(null);
+  });
+
   coverInitial(): string {
     return (this.name.trim()[0] ?? 'P').toUpperCase();
   }
@@ -60,7 +54,7 @@ export class PlaylistEditModalComponent {
   }
 
   save(): void {
-    const playlist = this.playlist;
+    const playlist = this.playlist();
     const name = this.name.trim();
 
     if (!playlist || !name) {
@@ -106,6 +100,3 @@ export class PlaylistEditModalComponent {
     document.body.classList.remove('modal-open');
   }
 }
-
-
-

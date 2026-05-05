@@ -1,4 +1,4 @@
-﻿.artist-hero {
+.artist {
   position: relative;
   width: min(1180px, 100%);
   min-height: 304px;
@@ -17,7 +17,7 @@
   box-shadow: inset 0 -110px 120px rgba(0, 0, 0, 0.28);
 }
 
-.artist-hero::after {
+.artist::after {
   content: '';
   position: absolute;
   inset: auto 0 0;
@@ -26,13 +26,13 @@
   pointer-events: none;
 }
 
-.artist-hero__image,
-.artist-hero__meta {
+.artist__image,
+.artist__meta {
   position: relative;
   z-index: 1;
 }
 
-.artist-hero__image {
+.artist__image {
   width: 220px;
   aspect-ratio: 1;
   display: grid;
@@ -43,25 +43,25 @@
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.54);
 }
 
-.artist-hero__image img {
+.artist__image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.artist-hero__image span {
+.artist__image span {
   font-size: 72px;
   font-weight: 900;
 }
 
-.artist-hero__meta {
+.artist__meta {
   min-width: 0;
   display: grid;
   gap: 12px;
   justify-items: start;
 }
 
-.artist-hero__meta h1 {
+.artist__meta h1 {
   max-width: 100%;
   margin: 0;
   overflow-wrap: anywhere;
@@ -69,53 +69,47 @@
   line-height: 0.92;
 }
 
-.artist-hero__stats {
+.artist__stats {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 12px;
   color: rgba(255, 255, 255, 0.84);
   font-size: 15px;
+  gap: 25px;
 }
 
-.artist-hero__stats span + span::before {
-  content: 'â€¢';
-  margin-right: 12px;
-  color: rgba(255, 255, 255, 0.46);
-}
-
-.artist-follow-button {
+.artist__follow {
   min-width: 104px;
   margin-top: 2px;
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.24);
 }
 
-.artist-follow-button.is-followed {
+.artist__follow.is-followed {
   color: #fff;
   background: rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
 }
 
-.artist-follow-button.is-followed:hover {
+.artist__follow.is-followed:hover {
   background: rgba(255, 255, 255, 0.14);
 }
 
-.artist-content {
+.artist-albums {
   margin-top: 28px;
 }
 
 @media (max-width: 760px) {
-  .artist-hero {
+  .artist {
     grid-template-columns: 1fr;
     min-height: 0;
     padding: 26px;
   }
 
-  .artist-hero__image {
+  .artist__image {
     width: min(190px, 58vw);
   }
 
-  .artist-hero__meta h1 {
+  .artist__meta h1 {
     font-size: clamp(42px, 15vw, 72px);
   }
 }
-

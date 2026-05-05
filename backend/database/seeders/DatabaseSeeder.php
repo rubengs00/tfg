@@ -81,7 +81,7 @@ class DatabaseSeeder extends Seeder
 
     private function seedCatalog(): string
     {
-        /** @var SpotifyCatalogService $spotify */
+
         $spotify = app(SpotifyCatalogService::class);
 
         if (app()->environment('testing')) {

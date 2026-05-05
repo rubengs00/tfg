@@ -1,26 +1,21 @@
-﻿import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { LucideAngularModule, Music2, Pencil, Trash2, X } from 'lucide-angular';
 
-import { PlaylistDetail, SpotifyTrack } from '../../core/models';
+import { PlaylistDetail, SpotifyTrack } from '../../interfaces/music.interfaces';
 import { SongRowComponent } from '../song-row/song-row.component';
 
 @Component({
   selector: 'app-playlist-detail-modal',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, SongRowComponent],
+  imports: [LucideAngularModule, SongRowComponent],
   styleUrl: './playlist-detail-modal.component.scss',
   templateUrl: './playlist-detail-modal.component.html',
 })
 export class PlaylistDetailModalComponent {
-  @Input({ required: true }) detail!: PlaylistDetail;
-
-  @Output() closed = new EventEmitter<void>();
-  @Output() edit = new EventEmitter<PlaylistDetail['playlist']>();
-  @Output() removeTrack = new EventEmitter<SpotifyTrack>();
+  readonly detail = input.required<PlaylistDetail>();
+  readonly closed = output<void>();
+  readonly edit = output<PlaylistDetail['playlist']>();
+  readonly removeTrack = output<SpotifyTrack>();
 
   readonly icons = { Music2, Pencil, Trash2, X };
 }
-
-
-

@@ -1,12 +1,13 @@
-﻿import { Component, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Music2, Pause, Play, Volume2, VolumeX, X } from 'lucide-angular';
 
-import type { SpotifyTrack } from '../../core/models';
-import { PlayerService } from '../../core/player.service';
+import type { SpotifyTrack } from '../../interfaces/music.interfaces';
+import { PlayerService } from '../../services/player.service';
 
 @Component({
   selector: 'app-audio-player',
+  standalone: true,
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './audio-player.component.html',
   styleUrl: './audio-player.component.scss',
@@ -57,4 +58,3 @@ export class AudioPlayerComponent {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   }
 }
-

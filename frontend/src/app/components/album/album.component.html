@@ -1,11 +1,11 @@
-﻿@if (error()) {
+@if (error()) {
   <div class="empty-state">{{ error() }}</div>
 } @else if (!album()) {
   <div class="empty-state">Cargando album...</div>
 } @else {
-  <section class="page-hero page-hero--album">
+  <section class="page-header album">
     <img
-      class="page-hero__cover"
+      class="album__cover"
       [src]="album()?.images?.[0]?.url ?? ''"
       [alt]="album()?.name ?? ''"
     />
@@ -13,8 +13,8 @@
       <span class="eyebrow">Album</span>
       <h1>{{ album()?.name }}</h1>
       <p>
-        {{ album()?.artists?.[0]?.name ?? '' }} Â·
-        {{ album()?.release_date ?? '' }} Â·
+        {{ album()?.artists?.[0]?.name ?? '' }} -
+        {{ album()?.release_date ?? '' }} -
         {{ album()?.total_tracks ?? tracks().length }} canciones
       </p>
     </div>
@@ -28,4 +28,3 @@
     </div>
   </section>
 }
-

@@ -1,0 +1,36 @@
+@startuml
+left to right direction
+actor Visitante
+actor Usuario
+actor Administrador
+
+rectangle "Frontend Angular" {
+  usecase "Explorar inicio" as F1
+  usecase "Buscar musica" as F2
+  usecase "Ver artista" as F3
+  usecase "Ver album" as F4
+  usecase "Registrarse" as F5
+  usecase "Iniciar sesion" as F6
+  usecase "Verificar 2FA" as F7
+  usecase "Reproducir preview" as F8
+  usecase "Gestionar favoritas" as F9
+  usecase "Gestionar playlists" as F10
+  usecase "Editar perfil" as F11
+  usecase "Gestionar administracion" as F12
+}
+
+Visitante --> F1
+Visitante --> F2
+Visitante --> F3
+Visitante --> F4
+Visitante --> F5
+Visitante --> F6
+Usuario --> F7
+Usuario --> F8
+Usuario --> F9
+Usuario --> F10
+Usuario --> F11
+Administrador --> F12
+F6 ..> F7 : include
+F5 ..> F7 : include
+@enduml

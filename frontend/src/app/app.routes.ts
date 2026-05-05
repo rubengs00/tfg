@@ -9,7 +9,7 @@ import { LoginComponent } from './components/login/login.component';
 import { PlaylistsComponent } from './components/playlists/playlists.component';
 import { ProfileComponent } from './components/profile/profile.component';
 import { RegisterComponent } from './components/register/register.component';
-import { adminGuard, authGuard } from './core/auth.guard';
+import { adminGuard, authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent, title: 'MusicHub' },

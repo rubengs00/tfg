@@ -1,4 +1,4 @@
-﻿<section class="admin-dashboard">
+<section class="admin-dashboard">
   <aside class="admin-rail">
     <span class="eyebrow">Admin</span>
     <h1>Control</h1>
@@ -30,13 +30,13 @@
   </aside>
 
   <div class="admin-main">
-    <section class="admin-hero">
+    <section class="admin-header">
       <div>
         <span class="eyebrow">MusicHub Admin</span>
-        <h2>{{ heroTitle() }}</h2>
-        <p>{{ heroText() }}</p>
+        <h2>{{ headerTitle() }}</h2>
+        <p>{{ headerText() }}</p>
       </div>
-      <div class="admin-hero__badge">
+      <div class="admin-header__badge">
         <lucide-icon [img]="icons.ShieldCheck" [size]="18"></lucide-icon>
         <span>{{ auth.user()?.name ?? 'Admin' }}</span>
       </div>
@@ -597,4 +597,3 @@
     </article>
   </section>
 }
-

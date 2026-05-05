@@ -1,16 +1,15 @@
-﻿import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 
-import { CatalogService } from '../../core/catalog.service';
-import { SpotifyAlbum, SpotifyTrack } from '../../core/models';
+import { CatalogService } from '../../services/catalog.service';
+import { SpotifyAlbum, SpotifyTrack } from '../../interfaces/music.interfaces';
 import { SongRowComponent } from '../song-row/song-row.component';
 
 @Component({
   selector: 'app-album',
   standalone: true,
-  imports: [CommonModule, SongRowComponent],
+  imports: [SongRowComponent],
   templateUrl: './album.component.html',
   styleUrl: './album.component.scss',
 })
@@ -44,6 +43,3 @@ export class AlbumComponent {
     });
   }
 }
-
-
-

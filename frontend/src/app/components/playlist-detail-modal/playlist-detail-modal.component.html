@@ -1,4 +1,6 @@
-﻿<div class="spotify-modal-overlay" (click)="closed.emit()">
+@let modalDetail = detail();
+
+<div class="spotify-modal-overlay" (click)="closed.emit()">
   <div class="spotify-modal spotify-modal--playlist-detail" (click)="$event.stopPropagation()">
     <div class="edit-header">
       <h2>Playlist</h2>
@@ -7,10 +9,10 @@
       </button>
     </div>
 
-    <div class="playlist-modal-hero">
+    <div class="playlist-modal-summary">
       <div class="playlist-modal-cover">
-        @if (detail.playlist.coverUrl) {
-          <img [src]="detail.playlist.coverUrl" [alt]="detail.playlist.name" />
+        @if (modalDetail.playlist.coverUrl) {
+          <img [src]="modalDetail.playlist.coverUrl" [alt]="modalDetail.playlist.name" />
         } @else {
           <lucide-icon [img]="icons.Music2" [size]="52"></lucide-icon>
         }
@@ -18,24 +20,24 @@
 
       <div class="playlist-modal-meta">
         <span class="eyebrow">Lista</span>
-        <h3>{{ detail.playlist.name }}</h3>
-        @if (detail.playlist.description) {
-          <p>{{ detail.playlist.description }}</p>
+        <h3>{{ modalDetail.playlist.name }}</h3>
+        @if (modalDetail.playlist.description) {
+          <p>{{ modalDetail.playlist.description }}</p>
         }
-        <span>{{ detail.tracks.length }} canciones</span>
+        <span>{{ modalDetail.tracks.length }} canciones</span>
 
-        <button class="primary-button" type="button" (click)="edit.emit(detail.playlist)">
+        <button class="primary-button" type="button" (click)="edit.emit(modalDetail.playlist)">
           <lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>
           Editar
         </button>
       </div>
     </div>
 
-    @if (!detail.tracks.length) {
+    @if (!modalDetail.tracks.length) {
       <div class="empty-state">Esta playlist todavia no tiene canciones.</div>
     } @else {
       <div class="playlist-modal-track-list">
-        @for (track of detail.tracks; track track.id; let i = $index) {
+        @for (track of modalDetail.tracks; track track.id; let i = $index) {
           <div class="playlist-modal-track">
             <app-song-row [track]="track" [index]="i + 1" [showAlbum]="true" />
             <button
@@ -52,4 +54,3 @@
     }
   </div>
 </div>
-
