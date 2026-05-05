@@ -1,0 +1,55 @@
+﻿<div class="spotify-modal-overlay" (click)="closed.emit()">
+  <div class="spotify-modal spotify-modal--playlist-detail" (click)="$event.stopPropagation()">
+    <div class="edit-header">
+      <h2>Playlist</h2>
+      <button class="close-btn" type="button" (click)="closed.emit()" aria-label="Cerrar">
+        <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+      </button>
+    </div>
+
+    <div class="playlist-modal-hero">
+      <div class="playlist-modal-cover">
+        @if (detail.playlist.coverUrl) {
+          <img [src]="detail.playlist.coverUrl" [alt]="detail.playlist.name" />
+        } @else {
+          <lucide-icon [img]="icons.Music2" [size]="52"></lucide-icon>
+        }
+      </div>
+
+      <div class="playlist-modal-meta">
+        <span class="eyebrow">Lista</span>
+        <h3>{{ detail.playlist.name }}</h3>
+        @if (detail.playlist.description) {
+          <p>{{ detail.playlist.description }}</p>
+        }
+        <span>{{ detail.tracks.length }} canciones</span>
+
+        <button class="primary-button" type="button" (click)="edit.emit(detail.playlist)">
+          <lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>
+          Editar
+        </button>
+      </div>
+    </div>
+
+    @if (!detail.tracks.length) {
+      <div class="empty-state">Esta playlist todavia no tiene canciones.</div>
+    } @else {
+      <div class="playlist-modal-track-list">
+        @for (track of detail.tracks; track track.id; let i = $index) {
+          <div class="playlist-modal-track">
+            <app-song-row [track]="track" [index]="i + 1" [showAlbum]="true" />
+            <button
+              class="icon-button icon-button--danger"
+              type="button"
+              (click)="removeTrack.emit(track)"
+              title="Quitar de la playlist"
+            >
+              <lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon>
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
+

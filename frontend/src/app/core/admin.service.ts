@@ -32,13 +32,21 @@ export class AdminService {
     password: string;
     role: 'user' | 'admin';
     isActive?: boolean;
+    twoFactorEnabled?: boolean;
   }) {
     return this.http.post<{ user: User }>(`${API_BASE_URL}/admin/users`, payload);
   }
 
   updateUser(
     user: User,
-    patch: Partial<{ name: string; email: string; password: string; role: 'user' | 'admin'; isActive: boolean }>
+    patch: Partial<{
+      name: string;
+      email: string;
+      password: string;
+      role: 'user' | 'admin';
+      isActive: boolean;
+      twoFactorEnabled: boolean;
+    }>
   ) {
     return this.http.patch<{ user: User }>(`${API_BASE_URL}/admin/users/${user.id}`, patch);
   }
@@ -47,9 +55,15 @@ export class AdminService {
     return this.http.delete(`${API_BASE_URL}/admin/users/${user.id}`);
   }
 
-  activity() {
+  activity(filters: { type?: 'errors'; action?: string; userId?: number } = {}) {
     return this.http
-      .get<{ activity: ActivityEvent[] | { data: ActivityEvent[] } }>(`${API_BASE_URL}/admin/activity`)
+      .get<{ activity: ActivityEvent[] | { data: ActivityEvent[] } }>(`${API_BASE_URL}/admin/activity`, {
+        params: Object.fromEntries(
+          Object.entries(filters)
+            .filter(([, value]) => value !== undefined && value !== '')
+            .map(([key, value]) => [key, String(value)])
+        ),
+      })
       .pipe(map((response) => unwrapList(response.activity)));
   }
 

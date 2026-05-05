@@ -1,0 +1,100 @@
+<footer class="player-bar" [class.player-bar--active]="player.currentSong()">
+  <section class="player-track">
+    @if (player.currentSong(); as track) {
+      <div class="player-cover">
+        @if (track.album?.images?.[0]?.url) {
+          <img [src]="track.album!.images![0]!.url" [alt]="track.name" />
+        } @else {
+          <lucide-icon [img]="icons.Music2" [size]="22"></lucide-icon>
+        }
+      </div>
+      <div class="player-track__text">
+        <strong>{{ track.name }}</strong>
+        <span>{{ trackArtist(track) }}</span>
+      </div>
+    } @else {
+      <div class="player-cover player-cover--empty">
+        <lucide-icon [img]="icons.Music2" [size]="22"></lucide-icon>
+      </div>
+      <div class="player-track__text">
+        <strong>Selecciona una cancion</strong>
+        <span>Sin preview activa</span>
+      </div>
+    }
+  </section>
+
+  <section class="player-controls">
+    <button
+      class="player-play"
+      type="button"
+      (click)="player.toggle()"
+      [disabled]="!player.currentSong()?.preview_url"
+      [attr.aria-label]="player.isPlaying() ? 'Pausar preview' : 'Reproducir preview'"
+    >
+      @if (player.isLoading()) {
+        <span class="player-spinner" aria-hidden="true"></span>
+      } @else {
+        <lucide-icon [img]="player.isPlaying() ? icons.Pause : icons.Play" [size]="20"></lucide-icon>
+      }
+    </button>
+
+    <div class="player-timeline">
+      <span>{{ formatTime(player.progress()) }}</span>
+      <input
+        class="player-range"
+        type="range"
+        min="0"
+        [max]="player.duration()"
+        step="0.1"
+        [ngModel]="player.progress()"
+        (ngModelChange)="seek($event)"
+        [disabled]="!player.canSeek()"
+        [style.--range-fill]="progressFill()"
+        aria-label="Progreso"
+      />
+      <span>{{ formatTime(player.duration()) }}</span>
+    </div>
+
+    @if (player.status()) {
+      <p class="player-status" role="status">{{ player.status() }}</p>
+    }
+  </section>
+
+  <section class="player-extra">
+    <button
+      class="player-icon"
+      type="button"
+      (click)="player.toggleMute()"
+      [title]="player.isMuted() || player.volume() === 0 ? 'Activar sonido' : 'Silenciar'"
+      aria-label="Volumen"
+    >
+      <lucide-icon
+        [img]="player.isMuted() || player.volume() === 0 ? icons.VolumeX : icons.Volume2"
+        [size]="18"
+      ></lucide-icon>
+    </button>
+
+    <input
+      class="player-range player-volume"
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      [ngModel]="player.volume()"
+      (ngModelChange)="setVolume($event)"
+      [style.--range-fill]="volumeFill()"
+      aria-label="Volumen"
+    />
+
+    <button
+      class="player-icon"
+      type="button"
+      (click)="player.clear()"
+      [disabled]="!player.currentSong()"
+      title="Cerrar reproductor"
+      aria-label="Cerrar reproductor"
+    >
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </section>
+</footer>

@@ -1,0 +1,77 @@
+﻿<div class="song-row" [class.song-row--no-actions]="!showActions()">
+  <button
+    class="icon-button icon-button--play"
+    type="button"
+    (click)="play()"
+    [disabled]="!track().preview_url"
+    [title]="track().preview_url ? 'Reproducir preview' : 'Spotify no ofrece preview para esta cancion'"
+  >
+    <lucide-icon
+      [img]="isCurrentSong() && player.isPlaying() ? icons.Volume2 : icons.Play"
+      [size]="18"
+    ></lucide-icon>
+  </button>
+
+  <div class="song-row__index">{{ indexLabel() }}</div>
+
+  <div class="song-row__main">
+    <strong>{{ track().name }}</strong>
+
+    @if (showAlbum() && track().album) {
+      <a [routerLink]="['/albums', track().album!.id]">
+        {{ track().album!.name }}
+      </a>
+    } @else if (track().artists?.length) {
+      <span>{{ track().artists![0].name }}</span>
+    }
+  </div>
+
+  <span class="song-row__duration">
+    {{ duration() }}
+  </span>
+
+  @if (track().preview_url) {
+    <lucide-icon class="song-row__preview" [img]="icons.Volume2" [size]="16"></lucide-icon>
+  } @else {
+    <lucide-icon
+      class="song-row__preview song-row__preview--missing"
+      [img]="icons.VolumeX"
+      [size]="16"
+      title="Sin preview en Spotify"
+    ></lucide-icon>
+  }
+
+  @if (showActions()) {
+    <button class="icon-button" type="button" (click)="toggleFavorite()" title="Favorito">
+      <lucide-icon
+        [class.is-favorite]="isFavorite()"
+        [img]="icons.Heart"
+        [size]="18"
+      ></lucide-icon>
+    </button>
+
+    <button
+      class="icon-button"
+      type="button"
+      (click)="showPlaylistMenu.update(v => !v)"
+      title="Anadir a playlist"
+    >
+      <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
+    </button>
+  }
+
+  @if (showPlaylistMenu()) {
+    <div class="playlist-dropdown">
+      @for (pl of playlists(); track pl.id) {
+        <button
+          type="button"
+          (click)="addToPlaylist(pl.id)"
+          [disabled]="addingLoading()"
+        >
+          {{ pl.name }}
+        </button>
+      }
+    </div>
+  }
+</div>
+

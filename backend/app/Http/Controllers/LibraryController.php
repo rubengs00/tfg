@@ -10,7 +10,10 @@ use App\Services\SpotifyCatalogService;
 use App\Support\ActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class LibraryController extends Controller
 {
@@ -26,13 +29,18 @@ class LibraryController extends Controller
             ->select('songs.spotify_id')
             ->join('favorite_songs', 'favorite_songs.song_id', '=', 'songs.id')
             ->where('favorite_songs.user_id', $request->user()->id)
+            ->whereNotNull('songs.spotify_id')
             ->orderByDesc('favorite_songs.created_at')
             ->pluck('songs.spotify_id')
             ->filter()
             ->values()
             ->all();
 
-        $tracks = $this->safeTracksByIds($spotifyTrackIds);
+        $tracks = $this->orderTracksByIds($this->safeTracksByIds($spotifyTrackIds), $spotifyTrackIds);
+
+        if (empty($tracks) && ! empty($spotifyTrackIds)) {
+            $tracks = $this->getLocalTracks($spotifyTrackIds);
+        }
 
         return response()->json([
             'tracks' => $tracks,
@@ -93,6 +101,7 @@ class LibraryController extends Controller
             ->select('artists.spotify_id')
             ->join('followed_artists', 'followed_artists.artist_id', '=', 'artists.id')
             ->where('followed_artists.user_id', $request->user()->id)
+            ->whereNotNull('artists.spotify_id')
             ->orderByDesc('followed_artists.created_at')
             ->pluck('artists.spotify_id')
             ->filter()
@@ -100,6 +109,10 @@ class LibraryController extends Controller
             ->all();
 
         $artists = $this->safeArtistsByIds($spotifyArtistIds);
+
+        if (empty($artists) && ! empty($spotifyArtistIds)) {
+            $artists = $this->getLocalArtists($spotifyArtistIds);
+        }
 
         return response()->json([
             'artists' => $artists,
@@ -195,7 +208,11 @@ class LibraryController extends Controller
             ->values()
             ->all();
 
-        $tracks = $this->safeTracksByIds($spotifyTrackIds);
+        $tracks = $this->orderTracksByIds($this->safeTracksByIds($spotifyTrackIds), $spotifyTrackIds);
+
+        if (empty($tracks) && ! empty($spotifyTrackIds)) {
+            $tracks = $this->getLocalTracks($spotifyTrackIds);
+        }
 
         return response()->json([
             'playlist' => new PlaylistResource($playlist),
@@ -210,15 +227,18 @@ class LibraryController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:500'],
-            'cover' => ['nullable', 'image', 'max:4096'],
+            'cover' => ['nullable', 'file', 'max:4096'],
         ]);
 
         $playlist->name = $data['name'];
         $playlist->description = $data['description'] ?? null;
 
         if ($request->hasFile('cover')) {
-            $path = $request->file('cover')->store('playlists', 'public');
-            $playlist->cover_url = asset('storage/' . $path);
+            $cover = $request->file('cover');
+            $extension = $this->validatePlaylistCover($cover);
+            $filename = 'playlist-'.$playlist->id.'-'.Str::uuid().'.'.$extension;
+            $path = $this->storePlaylistCover($cover, $filename);
+            $playlist->cover_url = $this->publicStorageUrl($path);
         }
 
         $playlist->save();
@@ -277,7 +297,12 @@ class LibraryController extends Controller
             'spotifyTrackId' => $data['spotifyTrackId'],
         ]);
 
-        return response()->json(['message' => 'Cancion anadida a la playlist.']);
+        $playlist->loadCount('songs');
+
+        return response()->json([
+            'message' => 'Cancion anadida a la playlist.',
+            'playlist' => new PlaylistResource($playlist),
+        ]);
     }
 
     public function removeTrackFromPlaylist(Request $request, Playlist $playlist): JsonResponse
@@ -301,7 +326,12 @@ class LibraryController extends Controller
             'spotifyTrackId' => $data['spotifyTrackId'],
         ]);
 
-        return response()->json(['message' => 'Cancion eliminada de la playlist.']);
+        $playlist->loadCount('songs');
+
+        return response()->json([
+            'message' => 'Cancion eliminada de la playlist.',
+            'playlist' => new PlaylistResource($playlist),
+        ]);
     }
 
     private function authorizePlaylist(Request $request, Playlist $playlist): void
@@ -325,5 +355,139 @@ class LibraryController extends Controller
         } catch (\Throwable $exception) {
             return [];
         }
+    }
+
+    private function getLocalTracks(array $spotifyTrackIds): array
+    {
+        if (empty($spotifyTrackIds)) {
+            return [];
+        }
+
+        $songsBySpotifyId = Song::query()
+            ->whereIn('spotify_id', $spotifyTrackIds)
+            ->with('album.artist')
+            ->get()
+            ->keyBy('spotify_id');
+
+        return collect($spotifyTrackIds)
+            ->map(fn (string $spotifyTrackId) => $songsBySpotifyId->get($spotifyTrackId))
+            ->filter()
+            ->map(fn (Song $song): array => $this->localTrackPayload($song))
+            ->values()
+            ->all();
+    }
+
+    private function localTrackPayload(Song $song): array
+    {
+        return [
+            'id' => $song->spotify_id,
+            'name' => $song->title ?? 'Cancion',
+            'duration_ms' => ($song->duration_seconds ?? 0) * 1000,
+            'preview_url' => $song->preview_url,
+            'explicit' => $song->explicit ?? false,
+            'popularity' => $song->popularity ?? 0,
+            'track_number' => $song->track_number ?? 1,
+            'album' => [
+                'id' => $song->album?->spotify_id ?? '',
+                'name' => $song->album?->title ?? 'Album',
+                'images' => $song->album?->cover_url ? [['url' => $song->album->cover_url]] : [],
+                'artists' => $song->album?->artist ? [[
+                    'id' => $song->album->artist->spotify_id,
+                    'name' => $song->album->artist->name,
+                ]] : [],
+            ],
+            'artists' => $song->album?->artist ? [[
+                'id' => $song->album->artist->spotify_id,
+                'name' => $song->album->artist->name,
+            ]] : [],
+        ];
+    }
+
+    private function orderTracksByIds(array $tracks, array $spotifyTrackIds): array
+    {
+        if (empty($tracks)) {
+            return [];
+        }
+
+        $tracksById = collect($tracks)
+            ->filter(fn (mixed $track): bool => is_array($track) && isset($track['id']))
+            ->keyBy('id');
+
+        return collect($spotifyTrackIds)
+            ->map(fn (string $spotifyTrackId) => $tracksById->get($spotifyTrackId))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function getLocalArtists(array $spotifyArtistIds): array
+    {
+        if (empty($spotifyArtistIds)) {
+            return [];
+        }
+
+        $artists = Artist::query()
+            ->whereIn('spotify_id', $spotifyArtistIds)
+            ->get();
+
+        return $artists->map(function (Artist $artist) {
+            return [
+                'id' => $artist->spotify_id,
+                'name' => $artist->name,
+                'genres' => array_filter([$artist->genre]),
+                'popularity' => $artist->popularity ?? 0,
+                'followers' => [
+                    'total' => $artist->followers ?? 0,
+                ],
+                'images' => $artist->image_url ? [['url' => $artist->image_url]] : [],
+            ];
+        })->values()->all();
+    }
+
+    private function validatePlaylistCover(UploadedFile $cover): string
+    {
+        $imageInfo = @getimagesize($cover->getRealPath());
+        $imageType = $imageInfo[2] ?? null;
+        $extensions = [
+            IMAGETYPE_GIF => 'gif',
+            IMAGETYPE_JPEG => 'jpg',
+            IMAGETYPE_PNG => 'png',
+            IMAGETYPE_WEBP => 'webp',
+        ];
+
+        if (! isset($extensions[$imageType])) {
+            throw ValidationException::withMessages([
+                'cover' => ['La portada debe ser una imagen JPG, PNG, GIF o WebP.'],
+            ]);
+        }
+
+        return $extensions[$imageType];
+    }
+
+    private function storePlaylistCover(UploadedFile $cover, string $filename): string
+    {
+        $root = rtrim(
+            (string) config('filesystems.disks.public.root', storage_path('app/public')),
+            DIRECTORY_SEPARATOR
+        );
+        $directory = $root.DIRECTORY_SEPARATOR.'playlists';
+
+        if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            throw ValidationException::withMessages([
+                'cover' => ['No se pudo preparar el directorio de portadas.'],
+            ]);
+        }
+
+        $cover->move($directory, $filename);
+
+        return 'playlists/'.$filename;
+    }
+
+    private function publicStorageUrl(string $path): string
+    {
+        return rtrim(
+            (string) config('filesystems.disks.public.url', url('/storage')),
+            '/'
+        ).'/'.ltrim(str_replace('\\', '/', $path), '/');
     }
 }

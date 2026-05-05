@@ -1,0 +1,58 @@
+﻿@if (error()) {
+  <div class="empty-state">{{ error() }}</div>
+} @else if (!artist()) {
+  <div class="empty-state">Cargando artista...</div>
+} @else {
+  <section class="artist-hero">
+    <div class="artist-hero__image">
+      @if (artist()?.images?.[0]?.url) {
+        <img [src]="artist()!.images![0]!.url" [alt]="artist()?.name ?? ''" />
+      } @else {
+        <span>{{ artist()?.name?.[0] ?? 'A' }}</span>
+      }
+    </div>
+
+    <div class="artist-hero__meta">
+      <span class="eyebrow">Artista</span>
+      <h1>{{ artist()?.name }}</h1>
+
+      <div class="artist-hero__stats">
+        <span>{{ artist()?.followers?.total ?? 0 | number }} seguidores</span>
+        <span>{{ artist()?.genres?.[0] ?? 'Artista' }}</span>
+      </div>
+
+      <button
+        class="primary-button artist-follow-button"
+        [class.is-followed]="isFollowed()"
+        type="button"
+        (click)="toggleFollow()"
+      >
+        {{ isFollowed() ? 'Siguiendo' : 'Seguir' }}
+      </button>
+    </div>
+  </section>
+
+  <section class="content-section artist-content">
+    <div class="section-heading">
+      <h2>Albumes</h2>
+      <span>{{ albums().length }} publicados</span>
+    </div>
+
+    @if (!albums().length) {
+      <div class="empty-state">No hemos encontrado albumes para este artista.</div>
+    } @else {
+      <div class="media-grid">
+        @for (album of albums(); track album.id) {
+          <app-media-card
+            kind="album"
+            [title]="album.name"
+            [subtitle]="album.release_date ?? ''"
+            [imageUrl]="album.images?.[0]?.url ?? null"
+            [route]="['/albums', album.id]"
+          />
+        }
+      </div>
+    }
+  </section>
+}
+

@@ -1,0 +1,78 @@
+﻿<section class="page-hero page-hero--profile">
+  <div class="profile-hero">
+    <div class="profile-hero__avatar">
+      @if (auth.user()?.avatarUrl) {
+        <img [src]="auth.user()!.avatarUrl!" [alt]="auth.user()!.name" />
+      } @else {
+        <div class="avatar-fallback">{{ auth.user()?.name?.[0] ?? 'U' }}</div>
+      }
+    </div>
+
+    <div class="profile-hero__meta">
+      <span class="eyebrow">Perfil</span>
+      <h1>{{ auth.user()?.name ?? 'Perfil' }}</h1>
+
+      @if (data(); as d) {
+        <p>
+          {{ d.playlists.length }} playlists Â·
+          {{ favoriteTracks().length }} favoritas Â·
+          {{ followedArtists().length }} artistas seguidos
+        </p>
+      }
+
+      <button class="primary-button" type="button" (click)="editing.set(true)">
+        Editar perfil
+      </button>
+    </div>
+  </div>
+</section>
+
+<section class="content-section">
+  @if (loading()) {
+    <div class="empty-state">Cargando perfil...</div>
+  } @else if (!data()) {
+    <div class="empty-state">No se ha podido cargar tu perfil.</div>
+  } @else {
+    <div class="section-heading">
+      <h2>Artistas seguidos</h2>
+      <span>{{ followedArtists().length }} guardados</span>
+    </div>
+
+    @if (!followedArtists().length) {
+      <div class="empty-state">Cuando sigas artistas apareceran aqui y podras entrar a su detalle.</div>
+    } @else {
+      <div class="media-grid">
+        @for (artist of followedArtists(); track artist.id) {
+          <app-media-card
+            kind="artist"
+            [title]="artist.name"
+            [subtitle]="artist.genres?.[0] ?? 'Artista'"
+            [imageUrl]="artist.images?.[0]?.url ?? null"
+            [route]="['/artists', artist.id]"
+            [round]="true"
+          />
+        }
+      </div>
+    }
+
+    <div class="section-heading section-heading--spaced">
+      <h2>Favoritas</h2>
+      <span>{{ favoriteTracks().length }} canciones</span>
+    </div>
+
+    @if (!favoriteTracks().length) {
+      <div class="empty-state">Tus favoritas apareceran aqui automaticamente.</div>
+    } @else {
+      <div class="song-list">
+        @for (track of favoriteTracks(); track track.id; let i = $index) {
+          <app-song-row [track]="track" [index]="i + 1" [showAlbum]="true" />
+        }
+      </div>
+    }
+  }
+</section>
+
+@if (editing()) {
+  <app-profile-edit-modal (closed)="editing.set(false)" />
+}
+

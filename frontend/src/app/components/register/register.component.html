@@ -1,0 +1,118 @@
+﻿<section class="auth-layout">
+  @if (!challengeId()) {
+    <form class="auth-panel" (ngSubmit)="submit()">
+      <span class="eyebrow">Registro</span>
+      <h1>Crear cuenta</h1>
+
+      <label>
+        Nombre
+        <input
+          name="name"
+          [(ngModel)]="name"
+          autocomplete="name"
+          required
+          (ngModelChange)="clearFieldError('name')"
+        />
+        @if (fieldError('name'); as message) {
+          <span class="field-error">{{ message }}</span>
+        }
+      </label>
+
+      <label>
+        Email
+        <input
+          name="email"
+          type="email"
+          [(ngModel)]="email"
+          autocomplete="email"
+          required
+          (ngModelChange)="clearFieldError('email')"
+        />
+        @if (fieldError('email'); as message) {
+          <span class="field-error">{{ message }}</span>
+        }
+      </label>
+
+      <label>
+        Password
+        <input
+          name="password"
+          type="password"
+          [(ngModel)]="password"
+          autocomplete="new-password"
+          required
+          (ngModelChange)="clearFieldError('password')"
+        />
+        @if (fieldError('password'); as message) {
+          <span class="field-error">{{ message }}</span>
+        }
+      </label>
+
+      <label>
+        Repetir password
+        <input
+          name="passwordConfirm"
+          type="password"
+          [(ngModel)]="passwordConfirm"
+          autocomplete="new-password"
+          required
+          (ngModelChange)="clearFieldError('password')"
+        />
+      </label>
+
+      @if (error()) {
+        <p class="error-message">{{ error() }}</p>
+      }
+
+      <button class="primary-button primary-button--wide" type="submit" [disabled]="loading()">
+        <lucide-icon [img]="icons.UserPlus" [size]="18"></lucide-icon>
+        {{ loading() ? 'Creando cuenta...' : 'Crear cuenta' }}
+      </button>
+
+      <p class="hint auth-link">
+        Ya tienes cuenta? <a routerLink="/login">Inicia sesion</a>
+      </p>
+    </form>
+  } @else {
+    <form class="auth-panel" (ngSubmit)="verifyCode()">
+      <span class="eyebrow">Doble factor</span>
+      <h1>Verifica tu cuenta</h1>
+
+      <p class="hint">Te hemos enviado un codigo de 6 digitos al correo. Introducelo para activar tu sesion.</p>
+
+      @if (debugCode(); as code) {
+        <p class="two-factor-code">Codigo local: {{ code }}</p>
+      }
+
+      <label>
+        Codigo
+        <input
+          name="code"
+          inputmode="numeric"
+          maxlength="6"
+          [(ngModel)]="twoFactorCode"
+          autocomplete="one-time-code"
+          required
+        />
+      </label>
+
+      @if (error()) {
+        <p class="error-message">{{ error() }}</p>
+      }
+
+      @if (resendMessage()) {
+        <p class="success-message">{{ resendMessage() }}</p>
+      }
+
+      <button class="primary-button primary-button--wide" type="submit" [disabled]="loading()">
+        <lucide-icon [img]="icons.KeyRound" [size]="18"></lucide-icon>
+        {{ loading() ? 'Verificando...' : 'Verificar y entrar' }}
+      </button>
+
+      <button class="ghost-button" type="button" (click)="resendCode()" [disabled]="loading()">
+        Reenviar codigo
+      </button>
+    </form>
+  }
+</section>
+

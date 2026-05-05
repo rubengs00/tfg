@@ -1,25 +1,25 @@
 import { Routes } from '@angular/router';
 
+import { AdminComponent } from './components/admin/admin.component';
+import { AlbumComponent } from './components/album/album.component';
+import { ArtistComponent } from './components/artist/artist.component';
+import { FavoritesComponent } from './components/favorites/favorites.component';
+import { HomeComponent } from './components/home/home.component';
+import { LoginComponent } from './components/login/login.component';
+import { PlaylistsComponent } from './components/playlists/playlists.component';
+import { ProfileComponent } from './components/profile/profile.component';
+import { RegisterComponent } from './components/register/register.component';
 import { adminGuard, authGuard } from './core/auth.guard';
-import { AdminPageComponent } from './features/admin/admin-page.component';
-import { AlbumPageComponent } from './features/catalog/album-page.component';
-import { ArtistPageComponent } from './features/catalog/artist-page.component';
-import { HomePageComponent } from './features/home/home-page.component';
-import { FavoritesPageComponent } from './features/library/favorites-page.component';
-import { PlaylistsPageComponent } from './features/library/playlists-page.component';
-import { LoginPageComponent } from './features/login/login-page.component';
-import { RegisterPageComponent } from './features/register/register-page.component';
-import { ProfilePageComponent } from './features/profile/profile-page.component';
 
 export const routes: Routes = [
-  { path: '', component: HomePageComponent, title: 'MusicHub' },
-  { path: 'artists/:id', component: ArtistPageComponent, title: 'Artista | MusicHub' },
-  { path: 'albums/:id', component: AlbumPageComponent, title: 'Album | MusicHub' },
-  { path: 'favorites', component: FavoritesPageComponent, canActivate: [authGuard], title: 'Favoritos | MusicHub' },
-  { path: 'playlists', component: PlaylistsPageComponent, canActivate: [authGuard], title: 'Playlists | MusicHub' },
-  { path: 'profile', component: ProfilePageComponent, canActivate: [authGuard], title: 'Perfil | MusicHub' },
-  { path: 'admin', component: AdminPageComponent, canActivate: [authGuard, adminGuard], title: 'Admin | MusicHub' },
-  { path: 'login', component: LoginPageComponent, title: 'Login | MusicHub' },
-  { path: 'register', component: RegisterPageComponent, title: 'Registro | MusicHub' },
+  { path: '', component: HomeComponent, title: 'MusicHub' },
+  { path: 'artists/:id', component: ArtistComponent, title: 'Artista | MusicHub' },
+  { path: 'albums/:id', component: AlbumComponent, title: 'Album | MusicHub' },
+  { path: 'favorites', component: FavoritesComponent, canActivate: [authGuard], title: 'Favoritos | MusicHub' },
+  { path: 'playlists', component: PlaylistsComponent, canActivate: [authGuard], title: 'Playlists | MusicHub' },
+  { path: 'profile', component: ProfileComponent, canActivate: [authGuard], title: 'Perfil | MusicHub' },
+  { path: 'admin', component: AdminComponent, canActivate: [authGuard, adminGuard], title: 'Admin | MusicHub' },
+  { path: 'login', component: LoginComponent, title: 'Login | MusicHub' },
+  { path: 'register', component: RegisterComponent, title: 'Registro | MusicHub' },
   { path: '**', redirectTo: '' },
 ];

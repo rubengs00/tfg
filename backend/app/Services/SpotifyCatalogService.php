@@ -283,22 +283,38 @@ class SpotifyCatalogService
 
     public function syncArtistBySpotifyId(string $spotifyArtistId): ?Artist
     {
-        $artistData = $this->getArtist($spotifyArtistId);
-
-        if ($artistData === []) {
-            return null;
-        }
-
+        // Primero, intenta obtener o crear el registro existente
         $artist = Artist::query()->firstOrNew(['spotify_id' => $spotifyArtistId]);
 
-        $artist->fill([
-            'name' => $artistData['name'] ?? $artist->name ?? 'Artista',
-            'slug' => $artist->slug ?: $this->buildSlug($artistData['name'] ?? 'artist', $spotifyArtistId),
-            'genre' => $artistData['genres'][0] ?? null,
-            'followers' => (int) ($artistData['followers']['total'] ?? 0),
-            'image_url' => $artistData['images'][0]['url'] ?? null,
-            'popularity' => (int) ($artistData['popularity'] ?? 0),
-        ]);
+        // Si ya existe y tiene datos, devolverlo
+        if ($artist->exists && $artist->name) {
+            return $artist;
+        }
+
+        // Intentar obtener datos de Spotify
+        $artistData = $this->getArtist($spotifyArtistId);
+
+        // Si obtuvimos datos de Spotify, usarlos
+        if ($artistData !== []) {
+            $artist->fill([
+                'name' => $artistData['name'] ?? $artist->name ?? 'Artista',
+                'slug' => $artist->slug ?: $this->buildSlug($artistData['name'] ?? 'artist', $spotifyArtistId),
+                'genre' => $artistData['genres'][0] ?? null,
+                'followers' => (int) ($artistData['followers']['total'] ?? 0),
+                'image_url' => $artistData['images'][0]['url'] ?? null,
+                'popularity' => (int) ($artistData['popularity'] ?? 0),
+            ]);
+        } else {
+            // Si no tenemos datos de Spotify, crear un registro mínimo
+            $artist->fill([
+                'name' => $artist->name ?? 'Artista',
+                'slug' => $artist->slug ?: "artist_{$spotifyArtistId}",
+                'genre' => $artist->genre ?? null,
+                'followers' => $artist->followers ?? 0,
+                'image_url' => $artist->image_url ?? null,
+                'popularity' => $artist->popularity ?? 0,
+            ]);
+        }
 
         $artist->save();
 
@@ -307,11 +323,14 @@ class SpotifyCatalogService
 
     public function syncAlbumBySpotifyId(string $spotifyAlbumId, ?Artist $artist = null): ?Album
     {
-        $albumData = $this->getAlbum($spotifyAlbumId);
-
-        if ($albumData === []) {
-            return null;
+        // Si el álbum ya existe, devolverlo
+        $existingAlbum = Album::query()->where('spotify_id', $spotifyAlbumId)->first();
+        if ($existingAlbum) {
+            return $existingAlbum;
         }
+
+        // Intentar obtener datos de Spotify
+        $albumData = $this->getAlbum($spotifyAlbumId);
 
         $spotifyArtistId = $artist?->spotify_id
             ?? ($albumData['artists'][0]['id'] ?? null);
@@ -321,19 +340,42 @@ class SpotifyCatalogService
         }
 
         if (! $artist) {
-            return null;
+            // Si no hay artista, usar un artista genérico
+            $artist = Artist::query()->firstOrCreate(
+                ['spotify_id' => '__generic__'],
+                [
+                    'name' => 'Artistas varios',
+                    'slug' => 'various-artists',
+                    'genre' => null,
+                    'followers' => 0,
+                    'image_url' => null,
+                    'popularity' => 0,
+                ]
+            );
         }
 
         $album = Album::query()->firstOrNew(['spotify_id' => $spotifyAlbumId]);
 
-        $album->fill([
-            'artist_id' => $artist->id,
-            'title' => $albumData['name'] ?? $album->title ?? 'Album',
-            'slug' => $album->slug ?: $this->buildSlug(($artist->name ?? 'album') . ' ' . ($albumData['name'] ?? 'album'), $spotifyAlbumId),
-            'cover_url' => $albumData['images'][0]['url'] ?? null,
-            'release_year' => $this->releaseYear($albumData['release_date'] ?? null),
-            'total_tracks' => (int) ($albumData['total_tracks'] ?? 0),
-        ]);
+        if ($albumData !== []) {
+            $album->fill([
+                'artist_id' => $artist->id,
+                'title' => $albumData['name'] ?? $album->title ?? 'Album',
+                'slug' => $album->slug ?: $this->buildSlug(($artist->name ?? 'album') . ' ' . ($albumData['name'] ?? 'album'), $spotifyAlbumId),
+                'cover_url' => $albumData['images'][0]['url'] ?? null,
+                'release_year' => $this->releaseYear($albumData['release_date'] ?? null),
+                'total_tracks' => (int) ($albumData['total_tracks'] ?? 0),
+            ]);
+        } else {
+            // Si no hay datos de Spotify, crear un registro mínimo
+            $album->fill([
+                'artist_id' => $artist->id,
+                'title' => $album->title ?? "Album {$spotifyAlbumId}",
+                'slug' => $album->slug ?: "album_{$spotifyAlbumId}",
+                'cover_url' => $album->cover_url ?? null,
+                'release_year' => $album->release_year ?? now()->year,
+                'total_tracks' => 0,
+            ]);
+        }
 
         $album->save();
 
@@ -342,13 +384,54 @@ class SpotifyCatalogService
 
     public function syncTrackBySpotifyId(string $spotifyTrackId): ?Song
     {
-        $trackData = $this->getTrack($spotifyTrackId);
+        // Primero, intentar obtener o crear el registro existente
+        $song = Song::query()->where('spotify_id', $spotifyTrackId)->first();
 
-        if ($trackData === []) {
-            return null;
+        if ($song) {
+            return $song;
         }
 
-        return $this->upsertTrackFromSpotify($trackData);
+        // Intentar obtener datos de Spotify
+        $trackData = $this->getTrack($spotifyTrackId);
+
+        if ($trackData !== []) {
+            return $this->upsertTrackFromSpotify($trackData);
+        }
+
+        // Si no hay datos de Spotify, crear un álbum y canción mínimos
+        return $this->createMinimalTrackWithAlbum($spotifyTrackId);
+    }
+
+    private function createMinimalTrackWithAlbum(string $spotifyTrackId): ?Song
+    {
+        // Crear o encontrar un álbum genérico para canciones sin info de Spotify
+        $genericAlbum = Album::query()->firstOrCreate(
+            ['spotify_id' => '__generic__'],
+            [
+                'artist_id' => 1, // O crear un artist genérico si no existe
+                'title' => 'Canciones importadas',
+                'slug' => 'imported-tracks',
+                'cover_url' => null,
+                'release_year' => now()->year,
+                'total_tracks' => 0,
+            ]
+        );
+
+        // Crear la canción mínima
+        $song = Song::query()->firstOrCreate(
+            ['spotify_id' => $spotifyTrackId],
+            [
+                'album_id' => $genericAlbum->id,
+                'title' => "Canción {$spotifyTrackId}",
+                'duration_seconds' => 0,
+                'preview_url' => null,
+                'track_number' => 1,
+                'explicit' => false,
+                'popularity' => 0,
+            ]
+        );
+
+        return $song;
     }
 
     private function upsertTrackFromSpotify(array $trackData, ?Album $album = null): ?Song

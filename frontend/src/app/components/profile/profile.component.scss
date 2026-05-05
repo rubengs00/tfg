@@ -1,0 +1,10 @@
+﻿
+.page-hero--profile {
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .page-hero--profile {
+    align-items: start;
+  }
+}

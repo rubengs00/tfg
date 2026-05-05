@@ -1,0 +1,299 @@
+﻿/* ==============================
+   SPOTIFY EDIT PLAYLIST MODAL
+   ============================== */
+
+.spotify-modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 10000;
+}
+
+.spotify-modal {
+  width: 100%;
+  max-width: 760px;
+  background: #282828;
+  border-radius: 18px;
+  padding: 36px;
+  box-shadow: 0 50px 160px rgba(0, 0, 0, 0.9);
+  color: #fff;
+  animation: modalIn 0.18s ease-out;
+}
+
+/* ---------- HEADER ---------- */
+
+.spotify-modal .edit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.spotify-modal .edit-header h2 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.spotify-modal .close-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  transition: background 0.15s ease;
+}
+
+.spotify-modal .close-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- BODY LAYOUT ---------- */
+
+.spotify-modal .edit-body {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+/* ---------- COVER BLOCK ---------- */
+
+.spotify-modal .edit-image-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.spotify-modal .edit-image {
+  width: 180px;
+  height: 180px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #3a3a3a;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+}
+
+.spotify-modal .edit-image--fallback {
+  display: grid;
+  place-items: center;
+  font-size: 56px;
+  font-weight: 800;
+}
+
+.spotify-modal .image-picker {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 6px;
+  text-align: center;
+  background: #3a3a3a;
+  transition: background 0.15s ease;
+}
+
+.spotify-modal .image-picker:hover {
+  background: #4a4a4a;
+}
+
+.spotify-modal .image-picker.is-disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* ---------- INPUTS ---------- */
+
+.spotify-modal .edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.spotify-modal .edit-fields input,
+.spotify-modal .edit-fields textarea {
+  width: 100%;
+  background: #3a3a3a;
+  border: none;
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-size: 15px;
+  color: #fff;
+  transition: background 0.15s ease;
+}
+
+.spotify-modal .edit-fields textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.spotify-modal .edit-fields input:focus,
+.spotify-modal .edit-fields textarea:focus {
+  outline: none;
+  background: #454545;
+}
+
+.spotify-modal .modal-error {
+  margin: -4px 0 0;
+  color: #ffb4a8;
+  font-size: 13px;
+}
+
+/* ---------- FOOTER ---------- */
+
+.spotify-modal .edit-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 32px;
+}
+
+.spotify-modal .save-btn {
+  background: #fff;
+  color: #000;
+  border: none;
+  border-radius: 999px;
+  padding: 14px 30px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.spotify-modal .save-btn:hover {
+  transform: scale(1.03);
+}
+
+.spotify-modal .save-btn:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+.spotify-modal .save-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+  transform: none;
+}
+
+/* ---------- PLAYLIST DETAIL ---------- */
+
+.spotify-modal--playlist-detail {
+  max-width: 940px;
+  max-height: min(820px, calc(100vh - 48px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.playlist-modal-hero {
+  display: grid;
+  grid-template-columns: 186px minmax(0, 1fr);
+  gap: 26px;
+  align-items: end;
+  padding-bottom: 24px;
+}
+
+.playlist-modal-cover {
+  width: 186px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 8px;
+  color: #b3b3b3;
+  background: linear-gradient(145deg, #3a3a3a, #171717);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.42);
+}
+
+.playlist-modal-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.playlist-modal-meta {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.playlist-modal-meta h3 {
+  margin: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: clamp(34px, 6vw, 64px);
+  line-height: 1;
+}
+
+.playlist-modal-meta p {
+  margin: 0;
+  color: #c8c8c8;
+  line-height: 1.45;
+}
+
+.playlist-modal-meta span:not(.eyebrow) {
+  color: #b3b3b3;
+  font-size: 14px;
+}
+
+.playlist-modal-track-list {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.playlist-modal-track {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  gap: 8px;
+  align-items: center;
+}
+
+.playlist-modal-track .song-row {
+  min-width: 0;
+}
+
+.icon-button--danger:hover {
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.45);
+}
+
+@media (max-width: 720px) {
+  .spotify-modal {
+    padding: 24px;
+  }
+
+  .spotify-modal .edit-body,
+  .playlist-modal-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .playlist-modal-cover,
+  .spotify-modal .edit-image {
+    width: min(186px, 60vw);
+  }
+
+  .playlist-modal-meta h3 {
+    font-size: 36px;
+  }
+}
+
+/* ---------- ANIMATION ---------- */
+
+@keyframes modalIn {
+  from {
+    transform: translateY(8px) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+

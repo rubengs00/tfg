@@ -2,7 +2,12 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 
 import { API_BASE_URL } from './api';
-import { ProfileData } from './models';
+import { ProfileData, User } from './models';
+
+export interface ProfileUpdateResponse {
+  message: string;
+  user: User;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ProfileService {
@@ -13,9 +18,10 @@ export class ProfileService {
   }
 
   updateProfile(formData: FormData) {
-    // 🔥 Igual que playlists: multipart + Laravel -> usar POST + _method
-    formData.append('_method', 'PUT');
+    if (!formData.has('_method')) {
+      formData.append('_method', 'PUT');
+    }
 
-    return this.http.post(`${API_BASE_URL}/me/profile`, formData);
+    return this.http.post<ProfileUpdateResponse>(`${API_BASE_URL}/me/profile`, formData);
   }
 }

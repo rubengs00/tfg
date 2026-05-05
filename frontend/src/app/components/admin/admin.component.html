@@ -1,0 +1,600 @@
+﻿<section class="admin-dashboard">
+  <aside class="admin-rail">
+    <span class="eyebrow">Admin</span>
+    <h1>Control</h1>
+
+    <button
+      type="button"
+      [class.is-active]="activeTab() === 'stats'"
+      (click)="setTab('stats')"
+    >
+      <lucide-icon [img]="icons.BarChart3" [size]="18"></lucide-icon>
+      Stats
+    </button>
+    <button
+      type="button"
+      [class.is-active]="activeTab() === 'users'"
+      (click)="setTab('users')"
+    >
+      <lucide-icon [img]="icons.Users" [size]="18"></lucide-icon>
+      Users
+    </button>
+    <button
+      type="button"
+      [class.is-active]="activeTab() === 'logs'"
+      (click)="setTab('logs')"
+    >
+      <lucide-icon [img]="icons.FileWarning" [size]="18"></lucide-icon>
+      Logs
+    </button>
+  </aside>
+
+  <div class="admin-main">
+    <section class="admin-hero">
+      <div>
+        <span class="eyebrow">MusicHub Admin</span>
+        <h2>{{ heroTitle() }}</h2>
+        <p>{{ heroText() }}</p>
+      </div>
+      <div class="admin-hero__badge">
+        <lucide-icon [img]="icons.ShieldCheck" [size]="18"></lucide-icon>
+        <span>{{ auth.user()?.name ?? 'Admin' }}</span>
+      </div>
+    </section>
+
+    @if (status(); as status) {
+      <div
+        class="admin-status"
+        [class.is-info]="status.kind === 'info'"
+        [class.is-success]="status.kind === 'success'"
+        [class.is-error]="status.kind === 'error'"
+      >
+        @if (status.kind === 'error') {
+          <lucide-icon [img]="icons.AlertTriangle" [size]="18"></lucide-icon>
+        } @else {
+          <lucide-icon [img]="icons.CheckCircle2" [size]="18"></lucide-icon>
+        }
+        <span>{{ status.message }}</span>
+      </div>
+    }
+
+    @if (stats(); as stats) {
+      @if (activeTab() === 'stats') {
+        <section class="admin-section">
+          <div class="admin-kpis">
+            <article>
+              <span>Usuarios</span>
+              <strong>{{ stats.totals.users }}</strong>
+              <small>{{ stats.health.newUsers7d }} nuevos esta semana</small>
+            </article>
+            <article>
+              <span>Activos</span>
+              <strong>{{ stats.health.activeUsers }}</strong>
+              <small>{{ stats.health.inactiveUsers }} desactivados</small>
+            </article>
+            <article>
+              <span>Playlists</span>
+              <strong>{{ stats.totals.playlists }}</strong>
+              <small>{{ stats.totals.songs }} canciones locales</small>
+            </article>
+            <article [class.is-warning]="stats.health.errors24h > 0">
+              <span>Errores 24h</span>
+              <strong>{{ stats.health.errors24h }}</strong>
+              <small>{{ stats.totals.activityEvents }} eventos totales</small>
+            </article>
+          </div>
+
+          <div class="admin-analytics-grid">
+            <article class="admin-panel admin-panel--wide">
+              <div class="panel-title">
+                <div>
+                  <span class="eyebrow">Actividad</span>
+                  <h3>Ultimos 7 dias</h3>
+                </div>
+                <lucide-icon [img]="icons.Activity" [size]="18"></lucide-icon>
+              </div>
+
+              <div class="admin-chart">
+                @for (point of stats.activitySeries; track point.date) {
+                  <div class="admin-chart__bar">
+                    <span [style.height.%]="barHeight(point.total)"></span>
+                    <small>{{ point.label }}</small>
+                    <strong>{{ point.total }}</strong>
+                  </div>
+                }
+              </div>
+            </article>
+
+            <article class="admin-panel">
+              <div class="panel-title">
+                <div>
+                  <span class="eyebrow">Seguridad</span>
+                  <h3>Estado de usuarios</h3>
+                </div>
+                <lucide-icon [img]="icons.CheckCircle2" [size]="18"></lucide-icon>
+              </div>
+
+              <div class="admin-breakdown">
+                <div>
+                  <span>Admins</span>
+                  <strong>{{ stats.health.admins }}</strong>
+                </div>
+                <div>
+                  <span>Users</span>
+                  <strong>{{ stats.health.standardUsers }}</strong>
+                </div>
+                <div>
+                  <span>2FA</span>
+                  <strong>{{ stats.health.twoFactorUsers }}</strong>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <section class="admin-lists-grid">
+            <article class="admin-panel">
+              <div class="panel-title">
+                <h3>Top artistas</h3>
+                <lucide-icon [img]="icons.Users" [size]="18"></lucide-icon>
+              </div>
+              <div class="admin-list">
+                @for (artist of stats.topArtists; track artist.id) {
+                  <div>
+                    <strong>{{ artist.name }}</strong>
+                    <span>{{ artist.followers.toLocaleString('es-ES') }} seguidores</span>
+                  </div>
+                } @empty {
+                  <p class="admin-empty">Sin datos todavia.</p>
+                }
+              </div>
+            </article>
+
+            <article class="admin-panel">
+              <div class="panel-title">
+                <h3>Top canciones</h3>
+                <lucide-icon [img]="icons.Music4" [size]="18"></lucide-icon>
+              </div>
+              <div class="admin-list">
+                @for (song of stats.topSongs; track song.id) {
+                  <div>
+                    <strong>{{ song.title }}</strong>
+                    <span>{{ song.album?.artist?.name ?? 'Sin artista local' }}</span>
+                  </div>
+                } @empty {
+                  <p class="admin-empty">Sin favoritos todavia.</p>
+                }
+              </div>
+            </article>
+
+            <article class="admin-panel">
+              <div class="panel-title">
+                <h3>Top playlists</h3>
+                <lucide-icon [img]="icons.ListMusic" [size]="18"></lucide-icon>
+              </div>
+              <div class="admin-list">
+                @for (playlist of stats.topPlaylists; track playlist.id) {
+                  <div>
+                    <strong>{{ playlist.name }}</strong>
+                    <span>{{ playlist.user?.name ?? 'Usuario' }} - {{ playlist.songsCount ?? 0 }} canciones</span>
+                  </div>
+                } @empty {
+                  <p class="admin-empty">Sin playlists todavia.</p>
+                }
+              </div>
+            </article>
+          </section>
+        </section>
+      }
+
+      @if (activeTab() === 'users') {
+        <section class="admin-section">
+          <article class="admin-panel admin-panel--create">
+            <div class="panel-title">
+              <div>
+                <span class="eyebrow">Gestion</span>
+                <h3>Crear usuario</h3>
+              </div>
+              <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
+            </div>
+
+            <form class="admin-create-form" (ngSubmit)="createUser()">
+              <input name="name" [(ngModel)]="newUser.name" placeholder="Nombre" required />
+              <input name="email" [(ngModel)]="newUser.email" placeholder="Email" required />
+              <input
+                name="password"
+                type="password"
+                [(ngModel)]="newUser.password"
+                placeholder="Password"
+                required
+              />
+              <select name="role" [(ngModel)]="newUser.role">
+                <option value="user">user</option>
+                <option value="admin">admin</option>
+              </select>
+              <label class="admin-check admin-check--inline">
+                <input
+                  name="createTwoFactor"
+                  type="checkbox"
+                  [(ngModel)]="newUser.twoFactorEnabled"
+                />
+                2FA
+              </label>
+              <button class="primary-button" type="submit" [disabled]="savingUser()">
+                <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
+                {{ savingUser() ? 'Guardando...' : 'Crear' }}
+              </button>
+            </form>
+
+            @if (feedback()) {
+              <p class="admin-feedback">{{ feedback() }}</p>
+            }
+          </article>
+
+          <article class="admin-panel">
+            <div class="admin-table-header">
+              <div>
+                <span class="eyebrow">Usuarios</span>
+                <h3>{{ filteredUsers().length }} usuarios</h3>
+              </div>
+              <label class="admin-search">
+                <lucide-icon [img]="icons.Search" [size]="17"></lucide-icon>
+                <input
+                  name="userSearch"
+                  [ngModel]="userSearch()"
+                  (ngModelChange)="userSearch.set($event)"
+                  placeholder="Buscar usuario o email"
+                />
+              </label>
+            </div>
+
+            <div class="admin-user-list">
+              @for (user of filteredUsers(); track user.id) {
+                <button class="admin-user-row" type="button" (click)="openUser(user)">
+                  <span class="admin-avatar">
+                    @if (user.avatarUrl) {
+                      <img [src]="user.avatarUrl" [alt]="user.name" />
+                    } @else {
+                      {{ avatarInitial(user) }}
+                    }
+                  </span>
+
+                  <span class="admin-user-row__identity">
+                    <strong>{{ user.name }}</strong>
+                    <small>{{ user.email }}</small>
+                  </span>
+
+                  <span class="admin-pill" [class.is-admin]="user.role === 'admin'">
+                    {{ user.role }}
+                  </span>
+
+                  <span class="admin-pill" [class.is-muted]="!user.isActive">
+                    {{ user.isActive ? 'Activo' : 'Bloqueado' }}
+                  </span>
+
+                  <span class="admin-pill" [class.is-admin]="user.twoFactorEnabled">
+                    {{ user.twoFactorEnabled ? '2FA' : 'sin 2FA' }}
+                  </span>
+
+                  <span class="admin-user-row__stats">
+                    {{ user.playlistsCount ?? 0 }} pl
+                    <span>{{ user.favoriteSongsCount ?? 0 }} fav</span>
+                  </span>
+
+                  <span class="admin-row-actions" (click)="$event.stopPropagation()">
+                    <button
+                      class="icon-button"
+                      type="button"
+                      (click)="toggleActive(user)"
+                      [disabled]="isCurrentUser(user)"
+                      [title]="user.isActive ? 'Desactivar' : 'Activar'"
+                    >
+                      <lucide-icon
+                        [img]="user.isActive ? icons.UserRoundX : icons.UserRoundCheck"
+                        [size]="17"
+                      ></lucide-icon>
+                    </button>
+                    <button
+                      class="icon-button"
+                      type="button"
+                      (click)="deleteUser(user)"
+                      [disabled]="isCurrentUser(user)"
+                      title="Eliminar"
+                    >
+                      <lucide-icon [img]="icons.Trash2" [size]="17"></lucide-icon>
+                    </button>
+                  </span>
+                </button>
+              } @empty {
+                <p class="admin-empty">No hay usuarios con ese filtro.</p>
+              }
+            </div>
+          </article>
+        </section>
+      }
+
+      @if (activeTab() === 'logs') {
+        <section class="admin-section">
+          <div class="admin-log-toolbar">
+            <div>
+              <span class="eyebrow">Logs</span>
+              <h3>{{ logMode() === 'errors' ? 'Errores de API' : 'Actividad del sistema' }}</h3>
+            </div>
+            <div class="admin-segmented">
+              <button
+                type="button"
+                [class.is-active]="logMode() === 'all'"
+                (click)="setLogMode('all')"
+              >
+                Todo
+              </button>
+              <button
+                type="button"
+                [class.is-active]="logMode() === 'errors'"
+                (click)="setLogMode('errors')"
+              >
+                Errores
+              </button>
+            </div>
+          </div>
+
+          <article class="admin-panel">
+            <div class="admin-log-list">
+              @for (event of logs(); track event.id) {
+                <div class="admin-log-row" [class.is-error]="event.action === 'api.request_failed'">
+                  <span class="admin-log-row__icon">
+                    <lucide-icon
+                      [img]="event.action === 'api.request_failed' ? icons.AlertTriangle : icons.Activity"
+                      [size]="18"
+                    ></lucide-icon>
+                  </span>
+
+                  <div>
+                    <strong>{{ eventTitle(event) }}</strong>
+                    <span>{{ eventDescription(event) }}</span>
+                  </div>
+
+                  <small>{{ shortDate(event.createdAt) }}</small>
+                </div>
+              } @empty {
+                <p class="admin-empty">No hay logs para este filtro.</p>
+              }
+            </div>
+          </article>
+        </section>
+      }
+    } @else {
+      <div class="empty-state">Cargando panel de administrador...</div>
+    }
+  </div>
+</section>
+
+@if (selectedUser(); as user) {
+  <section class="admin-modal" (click)="closeUserModal()">
+    <article class="admin-modal__panel" (click)="$event.stopPropagation()">
+      <header class="admin-modal__header">
+        <div class="admin-modal__identity">
+          <span class="admin-avatar admin-avatar--large">
+            @if (user.avatarUrl) {
+              <img [src]="user.avatarUrl" [alt]="user.name" />
+            } @else {
+              {{ avatarInitial(user) }}
+            }
+          </span>
+          <div>
+            <span class="eyebrow">Detalle de usuario</span>
+            <h2>{{ user.name }}</h2>
+            <p>{{ user.email }}</p>
+          </div>
+        </div>
+
+        <button class="icon-button" type="button" (click)="closeUserModal()" title="Cerrar">
+          <lucide-icon [img]="icons.X" [size]="19"></lucide-icon>
+        </button>
+      </header>
+
+      <div class="admin-modal__grid">
+        <section class="admin-modal__column">
+          <div class="admin-user-metrics">
+            <div>
+              <span>Playlists</span>
+              <strong>{{ selectedLibrary()?.stats?.playlists ?? user.playlistsCount ?? 0 }}</strong>
+            </div>
+            <div>
+              <span>Favoritas</span>
+              <strong>{{ selectedLibrary()?.stats?.favorites ?? user.favoriteSongsCount ?? 0 }}</strong>
+            </div>
+            <div>
+              <span>Artistas</span>
+              <strong>{{ selectedLibrary()?.stats?.followedArtists ?? user.followedArtistsCount ?? 0 }}</strong>
+            </div>
+          </div>
+
+          <form class="admin-user-edit" (ngSubmit)="saveSelectedUser()">
+            <label>
+              Nombre
+              <input name="editName" [(ngModel)]="userDraft.name" required />
+            </label>
+            <label>
+              Email
+              <input name="editEmail" type="email" [(ngModel)]="userDraft.email" required />
+            </label>
+            <label>
+              Nueva password
+              <input
+                name="editPassword"
+                type="password"
+                [(ngModel)]="userDraft.password"
+                placeholder="Dejar vacio para mantener"
+              />
+            </label>
+            <div class="admin-edit-row">
+              <label>
+                Rol
+                <select name="editRole" [(ngModel)]="userDraft.role">
+                  <option value="user">user</option>
+                  <option value="admin">admin</option>
+                </select>
+              </label>
+              <label class="admin-check">
+                <input
+                  name="editActive"
+                  type="checkbox"
+                  [(ngModel)]="userDraft.isActive"
+                  [disabled]="isCurrentUser(user)"
+                />
+                Activo
+              </label>
+              <label class="admin-check">
+                <input
+                  name="editTwoFactor"
+                  type="checkbox"
+                  [(ngModel)]="userDraft.twoFactorEnabled"
+                />
+                2FA
+              </label>
+            </div>
+            <button class="primary-button" type="submit" [disabled]="savingUser()">
+              {{ savingUser() ? 'Guardando...' : 'Guardar cambios' }}
+            </button>
+          </form>
+        </section>
+
+        <section class="admin-modal__column admin-modal__column--wide">
+          @if (loadingLibrary()) {
+            <div class="empty-state">Cargando biblioteca...</div>
+          } @else if (selectedLibrary(); as library) {
+            <div class="admin-modal-section">
+              <div class="panel-title">
+                <h3>Playlists</h3>
+                <span>{{ library.playlists.length }}</span>
+              </div>
+
+              <div class="admin-playlist-grid">
+                @for (playlist of library.playlists; track playlist.id) {
+                  <div class="admin-playlist-card" role="button" tabindex="0" (click)="viewPlaylist(playlist)">
+                    <span class="admin-playlist-card__cover">
+                      @if (playlist.coverUrl) {
+                        <img [src]="playlist.coverUrl" [alt]="playlist.name" />
+                      } @else {
+                        <lucide-icon [img]="icons.ListMusic" [size]="20"></lucide-icon>
+                      }
+                    </span>
+                    <span>
+                      <strong>{{ playlist.name }}</strong>
+                      <small>{{ playlist.songsCount ?? 0 }} canciones</small>
+                    </span>
+                    <button
+                      class="icon-button"
+                      type="button"
+                      (click)="removePlaylist(playlist); $event.stopPropagation()"
+                      title="Eliminar playlist"
+                    >
+                      <lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon>
+                    </button>
+                  </div>
+                } @empty {
+                  <p class="admin-empty">Este usuario no tiene playlists.</p>
+                }
+              </div>
+            </div>
+
+            @if (selectedPlaylistDetail(); as detail) {
+              <div class="admin-modal-section">
+                <div class="panel-title">
+                  <h3>{{ detail.playlist.name }}</h3>
+                  <span>{{ detail.tracks.length }} canciones</span>
+                </div>
+                <div class="song-list">
+                  @for (track of detail.tracks; track track.id; let i = $index) {
+                    <app-song-row
+                      [track]="track"
+                      [index]="i + 1"
+                      [showAlbum]="true"
+                      [showActions]="false"
+                    />
+                  } @empty {
+                    <div class="empty-state">Esta playlist no tiene canciones.</div>
+                  }
+                </div>
+              </div>
+            }
+
+            <div class="admin-modal-section">
+              <div class="panel-title">
+                <h3>Favoritas</h3>
+                <span>{{ library.favoriteTracks.length }}</span>
+              </div>
+              <div class="song-list">
+                @for (track of library.favoriteTracks; track track.id; let i = $index) {
+                  <div class="admin-song-admin-row">
+                    <app-song-row
+                      [track]="track"
+                      [index]="i + 1"
+                      [showAlbum]="true"
+                      [showActions]="false"
+                    />
+                    <button class="icon-button" type="button" (click)="removeFavorite(track.id)" title="Quitar">
+                      <lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon>
+                    </button>
+                  </div>
+                } @empty {
+                  <p class="admin-empty">Sin favoritas guardadas.</p>
+                }
+              </div>
+            </div>
+
+            <div class="admin-modal-section">
+              <div class="panel-title">
+                <h3>Artistas seguidos</h3>
+                <span>{{ library.followedArtists.length }}</span>
+              </div>
+              <div class="admin-followed-grid">
+                @for (artist of library.followedArtists; track artist.id) {
+                  <div>
+                    @if (artist.images?.[0]?.url) {
+                      <img [src]="artist.images![0]!.url" [alt]="artist.name" />
+                    }
+                    <span>
+                      <strong>{{ artist.name }}</strong>
+                      <small>{{ artist.genres?.[0] ?? 'Artista' }}</small>
+                    </span>
+                    <button class="icon-button" type="button" (click)="removeFollowedArtist(artist.id)">
+                      <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+                    </button>
+                  </div>
+                } @empty {
+                  <p class="admin-empty">No sigue artistas todavia.</p>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="empty-state">No se ha podido cargar la biblioteca.</div>
+          }
+        </section>
+      </div>
+    </article>
+  </section>
+}
+
+@if (confirmation(); as confirmation) {
+  <section class="admin-confirm" (click)="cancelConfirmation()">
+    <article class="admin-confirm__panel" (click)="$event.stopPropagation()">
+      <div class="admin-confirm__icon">
+        <lucide-icon [img]="icons.AlertTriangle" [size]="22"></lucide-icon>
+      </div>
+      <div>
+        <h2>{{ confirmation.title }}</h2>
+        <p>{{ confirmation.message }}</p>
+      </div>
+      <div class="admin-confirm__actions">
+        <button class="ghost-button" type="button" (click)="cancelConfirmation()" [disabled]="confirmingAction()">
+          Cancelar
+        </button>
+        <button class="primary-button admin-danger-button" type="button" (click)="runConfirmedAction()" [disabled]="confirmingAction()">
+          {{ confirmingAction() ? confirmation.busyLabel : confirmation.confirmLabel }}
+        </button>
+      </div>
+    </article>
+  </section>
+}
+

@@ -39,6 +39,11 @@ class User extends Authenticatable
         return $this->hasMany(ApiToken::class);
     }
 
+    public function twoFactorChallenges(): HasMany
+    {
+        return $this->hasMany(TwoFactorChallenge::class);
+    }
+
     public function playlists(): HasMany
     {
         return $this->hasMany(Playlist::class);

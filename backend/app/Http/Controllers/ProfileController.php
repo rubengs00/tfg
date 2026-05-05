@@ -4,9 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\PlaylistResource;
 use App\Http\Resources\UserResource;
+use App\Models\Artist;
+use App\Models\Song;
 use App\Services\SpotifyCatalogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ProfileController extends Controller
 {
@@ -18,7 +23,6 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        $playlistCount = $user->playlists()->count();
         $favoriteIds = $user->favoriteSongs()
             ->whereNotNull('songs.spotify_id')
             ->orderByDesc('favorite_songs.created_at')
@@ -35,21 +39,32 @@ class ProfileController extends Controller
             ->all();
 
         try {
-            $favoriteTracks = $this->spotify->getTracksByIds($favoriteIds);
-        } catch (\Throwable $e) {
+            $favoriteTracks = $this->orderTracksByIds(
+                $this->spotify->getTracksByIds($favoriteIds),
+                $favoriteIds
+            );
+        } catch (\Throwable $exception) {
             $favoriteTracks = [];
+        }
+
+        if (empty($favoriteTracks) && ! empty($favoriteIds)) {
+            $favoriteTracks = $this->getLocalTracks($favoriteIds);
         }
 
         try {
             $followedArtists = $this->spotify->getArtistsByIds($followedIds);
-        } catch (\Throwable $e) {
+        } catch (\Throwable $exception) {
             $followedArtists = [];
+        }
+
+        if (empty($followedArtists) && ! empty($followedIds)) {
+            $followedArtists = $this->getLocalArtists($followedIds);
         }
 
         return response()->json([
             'user' => new UserResource($user),
             'stats' => [
-                'playlists' => $playlistCount,
+                'playlists' => $user->playlists()->count(),
                 'favorites' => $user->favoriteSongs()->count(),
                 'followedArtists' => $user->followedArtists()->count(),
             ],
@@ -67,20 +82,158 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'avatar' => ['nullable', 'image', 'max:2048'],
+            'avatar' => ['nullable', 'file', 'max:2048'],
         ]);
 
         $user->name = $validated['name'];
 
         if ($request->hasFile('avatar')) {
-            $path = $request->file('avatar')->store('avatars', 'public');
-            $user->avatar_url = asset('storage/' . $path);
+            $avatar = $request->file('avatar');
+            $extension = $this->validateAvatar($avatar);
+            $filename = 'user-'.$user->id.'-'.Str::uuid().'.'.$extension;
+            $path = $this->storeAvatar($avatar, $filename);
+            $user->avatar_url = $this->publicStorageUrl($path);
         }
 
         $user->save();
 
         return response()->json([
-            'user' => new UserResource($user),
+            'message' => 'Perfil actualizado correctamente',
+            'user' => new UserResource($user->fresh()),
         ]);
+    }
+
+    private function validateAvatar(UploadedFile $avatar): string
+    {
+        $imageInfo = @getimagesize($avatar->getRealPath());
+        $imageType = $imageInfo[2] ?? null;
+        $extensions = [
+            IMAGETYPE_GIF => 'gif',
+            IMAGETYPE_JPEG => 'jpg',
+            IMAGETYPE_PNG => 'png',
+            IMAGETYPE_WEBP => 'webp',
+        ];
+
+        if (! isset($extensions[$imageType])) {
+            throw ValidationException::withMessages([
+                'avatar' => ['El avatar debe ser una imagen JPG, PNG, GIF o WebP.'],
+            ]);
+        }
+
+        return $extensions[$imageType];
+    }
+
+    private function storeAvatar(UploadedFile $avatar, string $filename): string
+    {
+        $root = rtrim(
+            (string) config('filesystems.disks.public.root', storage_path('app/public')),
+            DIRECTORY_SEPARATOR
+        );
+        $directory = $root.DIRECTORY_SEPARATOR.'avatars';
+
+        if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            throw ValidationException::withMessages([
+                'avatar' => ['No se pudo preparar el directorio de avatares.'],
+            ]);
+        }
+
+        $avatar->move($directory, $filename);
+
+        return 'avatars/'.$filename;
+    }
+
+    private function publicStorageUrl(string $path): string
+    {
+        return rtrim(
+            (string) config('filesystems.disks.public.url', url('/storage')),
+            '/'
+        ).'/'.ltrim(str_replace('\\', '/', $path), '/');
+    }
+
+    private function getLocalTracks(array $spotifyTrackIds): array
+    {
+        if (empty($spotifyTrackIds)) {
+            return [];
+        }
+
+        $songsBySpotifyId = Song::query()
+            ->whereIn('spotify_id', $spotifyTrackIds)
+            ->with('album.artist')
+            ->get()
+            ->keyBy('spotify_id');
+
+        return collect($spotifyTrackIds)
+            ->map(fn (string $spotifyTrackId) => $songsBySpotifyId->get($spotifyTrackId))
+            ->filter()
+            ->map(fn (Song $song): array => $this->localTrackPayload($song))
+            ->values()
+            ->all();
+    }
+
+    private function localTrackPayload(Song $song): array
+    {
+        return [
+            'id' => $song->spotify_id,
+            'name' => $song->title ?? 'Cancion',
+            'duration_ms' => ($song->duration_seconds ?? 0) * 1000,
+            'preview_url' => $song->preview_url,
+            'explicit' => $song->explicit ?? false,
+            'popularity' => $song->popularity ?? 0,
+            'track_number' => $song->track_number ?? 1,
+            'album' => [
+                'id' => $song->album?->spotify_id ?? '',
+                'name' => $song->album?->title ?? 'Album',
+                'images' => $song->album?->cover_url ? [['url' => $song->album->cover_url]] : [],
+                'artists' => $song->album?->artist ? [[
+                    'id' => $song->album->artist->spotify_id,
+                    'name' => $song->album->artist->name,
+                ]] : [],
+            ],
+            'artists' => $song->album?->artist ? [[
+                'id' => $song->album->artist->spotify_id,
+                'name' => $song->album->artist->name,
+            ]] : [],
+        ];
+    }
+
+    private function orderTracksByIds(array $tracks, array $spotifyTrackIds): array
+    {
+        if (empty($tracks)) {
+            return [];
+        }
+
+        $tracksById = collect($tracks)
+            ->filter(fn (mixed $track): bool => is_array($track) && isset($track['id']))
+            ->keyBy('id');
+
+        return collect($spotifyTrackIds)
+            ->map(fn (string $spotifyTrackId) => $tracksById->get($spotifyTrackId))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function getLocalArtists(array $spotifyArtistIds): array
+    {
+        if (empty($spotifyArtistIds)) {
+            return [];
+        }
+
+        $artists = Artist::query()
+            ->whereIn('spotify_id', $spotifyArtistIds)
+            ->get();
+
+        return $artists->map(function (Artist $artist) {
+            return [
+                'id' => $artist->spotify_id,
+                'name' => $artist->name,
+                'genres' => array_filter([$artist->genre]),
+                'popularity' => $artist->popularity ?? 0,
+                'followers' => [
+                    'total' => $artist->followers ?? 0,
+                ],
+                'images' => $artist->image_url ? [['url' => $artist->image_url]] : [],
+            ];
+        })->values()->all();
     }
 }

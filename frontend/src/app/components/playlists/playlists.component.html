@@ -1,0 +1,95 @@
+﻿<section class="page-hero page-hero--compact">
+  <div>
+    <span class="eyebrow">Biblioteca</span>
+    <h1>Mis playlists</h1>
+  </div>
+
+  <form class="inline-form" (ngSubmit)="createPlaylist()">
+    <input
+      name="playlistName"
+      [(ngModel)]="playlistName"
+      placeholder="Nueva playlist"
+      required
+    />
+    <button class="icon-button icon-button--primary" type="submit">
+      <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
+    </button>
+  </form>
+</section>
+
+<section class="content-section">
+  @if (loading()) {
+    <div class="empty-state">Cargando playlists...</div>
+  } @else if (!playlists().length) {
+    <div class="empty-state">Todavia no has creado ninguna playlist.</div>
+  } @else {
+    <div class="playlist-grid">
+      @for (playlist of playlists(); track playlist.id) {
+        <article class="playlist-card">
+          <button class="playlist-tile" type="button" (click)="openPlaylist(playlist)">
+            <div class="playlist-tile__cover">
+              @if (playlist.coverUrl) {
+                <img [src]="playlist.coverUrl" [alt]="playlist.name" />
+              } @else {
+                <lucide-icon [img]="icons.Music2" [size]="42"></lucide-icon>
+              }
+            </div>
+
+            <strong>{{ playlist.name }}</strong>
+            <span>{{ playlist.songsCount ?? 0 }} canciones</span>
+            @if (playlist.description) {
+              <small>{{ playlist.description }}</small>
+            }
+            @if (loadingPlaylistId() === playlist.id) {
+              <em>Cargando...</em>
+            }
+          </button>
+
+          <div class="playlist-actions">
+            <button
+              class="icon-button"
+              type="button"
+              (click)="openEdit(playlist)"
+              title="Editar playlist"
+            >
+              <lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>
+            </button>
+
+            <button
+              class="icon-button icon-button--danger"
+              type="button"
+              (click)="deletePlaylist(playlist)"
+              title="Eliminar playlist"
+            >
+              <lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon>
+            </button>
+          </div>
+        </article>
+      }
+    </div>
+  }
+</section>
+
+@if (detailError(); as message) {
+  <section class="content-section">
+    <div class="empty-state">{{ message }}</div>
+  </section>
+}
+
+@if (selected(); as detail) {
+  <app-playlist-detail-modal
+    [detail]="detail"
+    (closed)="selected.set(null)"
+    (edit)="openEdit($event)"
+    (removeTrack)="removeTrackFromSelected($event)"
+  />
+}
+
+@if (editingPlaylist(); as p) {
+  <app-playlist-edit-modal
+    [playlist]="p"
+    (closed)="editingPlaylist.set(null)"
+    (updated)="handleUpdated($event)"
+  />
+}
+

@@ -1,0 +1,52 @@
+﻿<div class="spotify-modal-overlay" (click)="close()">
+  <div class="spotify-modal" (click)="$event.stopPropagation()">
+    <div class="edit-header">
+      <h2>Editar informacion</h2>
+      <button class="close-btn" type="button" (click)="close()" aria-label="Cerrar">
+        &times;
+      </button>
+    </div>
+
+    <div class="edit-body">
+      <div class="edit-image-block">
+        @if (avatarPreview(); as avatar) {
+          <img [src]="avatar" [alt]="name()" class="edit-image" />
+        } @else {
+          <div class="edit-image edit-image--fallback">{{ avatarInitial() }}</div>
+        }
+
+        <label class="image-picker" [class.is-disabled]="busy()">
+          Elegir foto
+          <input
+            type="file"
+            accept="image/*"
+            (change)="onFileSelected($event)"
+            [disabled]="busy()"
+            hidden
+          />
+        </label>
+      </div>
+
+      <div class="edit-fields">
+        <input
+          [ngModel]="name()"
+          (ngModelChange)="onNameChange($event)"
+          placeholder="Nombre"
+          autocomplete="name"
+          [disabled]="busy()"
+        />
+
+        @if (error(); as message) {
+          <p class="modal-error">{{ message }}</p>
+        }
+      </div>
+    </div>
+
+    <div class="edit-footer">
+      <button class="save-btn" type="button" (click)="save()" [disabled]="busy() || !name().trim()">
+        {{ saving() ? 'Guardando...' : loadingProfile() ? 'Cargando...' : 'Guardar' }}
+      </button>
+    </div>
+  </div>
+</div>
+

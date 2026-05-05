@@ -1,0 +1,31 @@
+﻿@if (error()) {
+  <div class="empty-state">{{ error() }}</div>
+} @else if (!album()) {
+  <div class="empty-state">Cargando album...</div>
+} @else {
+  <section class="page-hero page-hero--album">
+    <img
+      class="page-hero__cover"
+      [src]="album()?.images?.[0]?.url ?? ''"
+      [alt]="album()?.name ?? ''"
+    />
+    <div>
+      <span class="eyebrow">Album</span>
+      <h1>{{ album()?.name }}</h1>
+      <p>
+        {{ album()?.artists?.[0]?.name ?? '' }} Â·
+        {{ album()?.release_date ?? '' }} Â·
+        {{ album()?.total_tracks ?? tracks().length }} canciones
+      </p>
+    </div>
+  </section>
+
+  <section class="content-section">
+    <div class="song-list">
+      @for (track of tracks(); track track.id; let i = $index) {
+        <app-song-row [track]="track" [index]="i + 1" />
+      }
+    </div>
+  </section>
+}
+

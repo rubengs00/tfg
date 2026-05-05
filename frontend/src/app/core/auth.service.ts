@@ -3,7 +3,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { tap } from 'rxjs';
 
 import { API_BASE_URL } from './api';
-import { SessionResponse, User } from './models';
+import { AuthResponse, SessionResponse, User } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -16,19 +16,26 @@ export class AuthService {
   readonly isLoggedIn = computed(() => Boolean(this.tokenState() && this.userState()));
   readonly isAdmin = computed(() => this.userState()?.role === 'admin');
 
-  login(email: string, password: string) {
-    return this.http.post<SessionResponse>(`${API_BASE_URL}/auth/login`, {
-      email,
-      password,
-    }).pipe(tap((response) => this.setSession(response)));
+  constructor() {
+    if (this.tokenState()) {
+      this.refreshMe().subscribe({ error: () => undefined });
+    }
   }
 
-  register(name: string, email: string, password: string) {
-    return this.http.post<SessionResponse>(`${API_BASE_URL}/auth/register`, {
+  login(email: string, password: string) {
+    return this.http.post<AuthResponse>(`${API_BASE_URL}/auth/login`, {
+      email,
+      password,
+    }).pipe(tap((response) => this.storeSessionIfPresent(response)));
+  }
+
+  register(name: string, email: string, password: string, passwordConfirmation: string) {
+    return this.http.post<AuthResponse>(`${API_BASE_URL}/auth/register`, {
       name,
       email,
       password,
-    }).pipe(tap((response) => this.setSession(response)));
+      password_confirmation: passwordConfirmation,
+    }).pipe(tap((response) => this.storeSessionIfPresent(response)));
   }
 
   verifyTwoFactor(challengeId: string, code: string) {
@@ -36,6 +43,12 @@ export class AuthService {
       challengeId,
       code,
     }).pipe(tap((response) => this.setSession(response)));
+  }
+
+  resendTwoFactor(challengeId: string) {
+    return this.http.post<AuthResponse>(`${API_BASE_URL}/auth/resend-2fa`, {
+      challengeId,
+    });
   }
 
   refreshMe() {
@@ -70,6 +83,12 @@ export class AuthService {
     }
 
     globalThis.localStorage?.setItem('musichub_user', JSON.stringify(response.user));
+  }
+
+  private storeSessionIfPresent(response: AuthResponse): void {
+    if ('token' in response) {
+      this.setSession(response);
+    }
   }
 
   updateUser(user: User): void {

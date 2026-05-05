@@ -1,0 +1,82 @@
+﻿<section class="auth-layout">
+  @if (!challengeId()) {
+    <form class="auth-panel" (ngSubmit)="submit()">
+      <span class="eyebrow">Acceso</span>
+      <h1>Entrar en MusicHub</h1>
+
+      <label>
+        Email
+        <input name="email" type="email" [(ngModel)]="email" autocomplete="email" required />
+      </label>
+
+      <label>
+        Password
+        <input
+          name="password"
+          type="password"
+          [(ngModel)]="password"
+          autocomplete="current-password"
+          required
+        />
+      </label>
+
+      @if (error()) {
+        <p class="error-message">{{ error() }}</p>
+      }
+
+      <button class="primary-button primary-button--wide" type="submit" [disabled]="loading()">
+        <lucide-icon [img]="icons.LogIn" [size]="18"></lucide-icon>
+        {{ loading() ? 'Entrando...' : 'Entrar' }}
+      </button>
+
+      <button class="ghost-button" type="button" (click)="fillDemo()">
+        Usar demo
+      </button>
+
+      <p class="hint auth-link">
+        No tienes cuenta? <a routerLink="/register">Crea la tuya</a>
+      </p>
+    </form>
+  } @else {
+    <form class="auth-panel" (ngSubmit)="verifyCode()">
+      <span class="eyebrow">Doble factor</span>
+      <h1>Verifica tu acceso</h1>
+
+      <p class="hint">Te hemos enviado un codigo de 6 digitos al correo para completar el login.</p>
+
+      @if (debugCode(); as code) {
+        <p class="two-factor-code">Codigo local: {{ code }}</p>
+      }
+
+      <label>
+        Codigo
+        <input
+          name="code"
+          inputmode="numeric"
+          maxlength="6"
+          [(ngModel)]="twoFactorCode"
+          autocomplete="one-time-code"
+          required
+        />
+      </label>
+
+      @if (error()) {
+        <p class="error-message">{{ error() }}</p>
+      }
+
+      @if (resendMessage()) {
+        <p class="success-message">{{ resendMessage() }}</p>
+      }
+
+      <button class="primary-button primary-button--wide" type="submit" [disabled]="loading()">
+        <lucide-icon [img]="icons.KeyRound" [size]="18"></lucide-icon>
+        {{ loading() ? 'Verificando...' : 'Verificar y entrar' }}
+      </button>
+
+      <button class="ghost-button" type="button" (click)="resendCode()" [disabled]="loading()">
+        Reenviar codigo
+      </button>
+    </form>
+  }
+</section>
+

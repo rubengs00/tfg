@@ -29,6 +29,14 @@ class AdminController extends Controller
 
     public function stats(): JsonResponse
     {
+        $lastWeek = now()->subDays(6)->startOfDay();
+        $activityByDay = ActivityLog::query()
+            ->selectRaw('DATE(created_at) as day, COUNT(*) as total')
+            ->where('created_at', '>=', $lastWeek)
+            ->groupBy('day')
+            ->orderBy('day')
+            ->pluck('total', 'day');
+
         return response()->json([
             'totals' => [
                 'users' => User::query()->count(),
@@ -37,14 +45,47 @@ class AdminController extends Controller
                 'playlists' => Playlist::query()->count(),
                 'activityEvents' => ActivityLog::query()->count(),
             ],
+            'health' => [
+                'admins' => User::query()->where('role', 'admin')->count(),
+                'standardUsers' => User::query()->where('role', 'user')->count(),
+                'activeUsers' => User::query()->where('is_active', true)->count(),
+                'inactiveUsers' => User::query()->where('is_active', false)->count(),
+                'twoFactorUsers' => User::query()->where('two_factor_enabled', true)->count(),
+                'newUsers7d' => User::query()->where('created_at', '>=', now()->subDays(7))->count(),
+                'errors24h' => ActivityLog::query()
+                    ->where('action', 'api.request_failed')
+                    ->where('created_at', '>=', now()->subDay())
+                    ->count(),
+            ],
+            'activitySeries' => collect(range(0, 6))->map(function (int $offset) use ($lastWeek, $activityByDay): array {
+                $day = $lastWeek->copy()->addDays($offset);
+                $key = $day->toDateString();
+
+                return [
+                    'date' => $key,
+                    'label' => $day->format('d/m'),
+                    'total' => (int) ($activityByDay[$key] ?? 0),
+                ];
+            })->values(),
             'topArtists' => ArtistResource::collection(
                 Artist::query()->withCount('followedByUsers')->orderByDesc('followed_by_users_count')->limit(5)->get()
             ),
             'topSongs' => SongResource::collection(
                 Song::query()->with('album.artist')->withCount('favoritedByUsers')->orderByDesc('favorited_by_users_count')->limit(5)->get()
             ),
+            'topPlaylists' => PlaylistResource::collection(
+                Playlist::query()->with('user')->withCount('songs')->orderByDesc('songs_count')->limit(5)->get()
+            ),
             'recentActivity' => ActivityLogResource::collection(
-                ActivityLog::query()->with('user')->latest()->limit(8)->get()
+                ActivityLog::query()->with('user')->latest()->limit(12)->get()
+            ),
+            'recentErrors' => ActivityLogResource::collection(
+                ActivityLog::query()
+                    ->with('user')
+                    ->where('action', 'api.request_failed')
+                    ->latest()
+                    ->limit(10)
+                    ->get()
             ),
         ]);
     }
@@ -54,7 +95,7 @@ class AdminController extends Controller
         $users = User::query()
             ->withCount(['playlists', 'favoriteSongs', 'followedArtists'])
             ->latest()
-            ->paginate(20);
+            ->get();
 
         return response()->json([
             'users' => UserResource::collection($users),
@@ -69,6 +110,7 @@ class AdminController extends Controller
             'password' => ['required', Password::min(8)],
             'role' => ['required', Rule::in(['user', 'admin'])],
             'isActive' => ['sometimes', 'boolean'],
+            'twoFactorEnabled' => ['sometimes', 'boolean'],
         ]);
 
         $user = User::query()->create([
@@ -77,7 +119,7 @@ class AdminController extends Controller
             'password' => $data['password'],
             'role' => $data['role'],
             'is_active' => $data['isActive'] ?? true,
-            'two_factor_enabled' => false,
+            'two_factor_enabled' => $data['twoFactorEnabled'] ?? false,
         ]);
 
         $this->activity->record($request->user(), 'admin.user_created', 'user', $user);
@@ -87,12 +129,17 @@ class AdminController extends Controller
 
     public function updateUser(Request $request, User $user): JsonResponse
     {
+        if ($request->user()->is($user) && $request->has('isActive') && $request->boolean('isActive') === false) {
+            return response()->json(['message' => 'No puedes desactivar tu propia cuenta administradora.'], 422);
+        }
+
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:120'],
             'email' => ['sometimes', 'required', 'email', 'max:180', Rule::unique('users', 'email')->ignore($user)],
             'password' => ['nullable', Password::min(8)],
             'role' => ['sometimes', Rule::in(['user', 'admin'])],
             'isActive' => ['sometimes', 'boolean'],
+            'twoFactorEnabled' => ['sometimes', 'boolean'],
         ]);
 
         $user->fill([
@@ -100,6 +147,7 @@ class AdminController extends Controller
             'email' => $data['email'] ?? $user->email,
             'role' => $data['role'] ?? $user->role,
             'is_active' => $data['isActive'] ?? $user->is_active,
+            'two_factor_enabled' => $data['twoFactorEnabled'] ?? $user->two_factor_enabled,
         ]);
 
         if (! empty($data['password'])) {
@@ -107,6 +155,13 @@ class AdminController extends Controller
         }
 
         $user->save();
+
+        if (array_key_exists('twoFactorEnabled', $data) && ! $data['twoFactorEnabled']) {
+            $user->twoFactorChallenges()
+                ->whereNull('consumed_at')
+                ->update(['consumed_at' => now()]);
+        }
+
         $this->activity->record($request->user(), 'admin.user_updated', 'user', $user);
 
         return response()->json(['user' => new UserResource($user)]);
@@ -138,6 +193,10 @@ class AdminController extends Controller
             $query->where('action', 'like', '%' . $request->query('action') . '%');
         }
 
+        if ($request->query('type') === 'errors') {
+            $query->where('action', 'api.request_failed');
+        }
+
         return response()->json([
             'activity' => ActivityLogResource::collection($query->paginate(30)),
         ]);
@@ -159,6 +218,17 @@ class AdminController extends Controller
             ->values()
             ->all();
 
+        $favoriteTracks = $this->orderTracksByIds($this->safeTracksByIds($favoriteIds), $favoriteIds);
+        $followedArtists = $this->safeArtistsByIds($followedIds);
+
+        if ($favoriteTracks === [] && $favoriteIds !== []) {
+            $favoriteTracks = $this->getLocalTracks($favoriteIds);
+        }
+
+        if ($followedArtists === [] && $followedIds !== []) {
+            $followedArtists = $this->getLocalArtists($followedIds);
+        }
+
         return response()->json([
             'user' => new UserResource($user->loadCount(['playlists', 'favoriteSongs', 'followedArtists'])),
             'stats' => [
@@ -166,8 +236,8 @@ class AdminController extends Controller
                 'favorites' => $user->favoriteSongs()->count(),
                 'followedArtists' => $user->followedArtists()->count(),
             ],
-            'favoriteTracks' => $this->safeTracksByIds($favoriteIds),
-            'followedArtists' => $this->safeArtistsByIds($followedIds),
+            'favoriteTracks' => $favoriteTracks,
+            'followedArtists' => $followedArtists,
             'playlists' => PlaylistResource::collection(
                 $user->playlists()->withCount('songs')->latest()->get()
             ),
@@ -187,9 +257,15 @@ class AdminController extends Controller
             ->values()
             ->all();
 
+        $tracks = $this->orderTracksByIds($this->safeTracksByIds($spotifyTrackIds), $spotifyTrackIds);
+
+        if ($tracks === [] && $spotifyTrackIds !== []) {
+            $tracks = $this->getLocalTracks($spotifyTrackIds);
+        }
+
         return response()->json([
             'playlist' => new PlaylistResource($playlist),
-            'tracks' => $this->safeTracksByIds($spotifyTrackIds),
+            'tracks' => $tracks,
         ]);
     }
 
@@ -253,5 +329,96 @@ class AdminController extends Controller
         } catch (\Throwable $exception) {
             return [];
         }
+    }
+
+    private function getLocalTracks(array $spotifyTrackIds): array
+    {
+        if ($spotifyTrackIds === []) {
+            return [];
+        }
+
+        $songsBySpotifyId = Song::query()
+            ->whereIn('spotify_id', $spotifyTrackIds)
+            ->with('album.artist')
+            ->get()
+            ->keyBy('spotify_id');
+
+        return collect($spotifyTrackIds)
+            ->map(fn (string $spotifyTrackId) => $songsBySpotifyId->get($spotifyTrackId))
+            ->filter()
+            ->map(fn (Song $song): array => $this->localTrackPayload($song))
+            ->values()
+            ->all();
+    }
+
+    private function localTrackPayload(Song $song): array
+    {
+        return [
+            'id' => $song->spotify_id,
+            'name' => $song->title ?? 'Cancion',
+            'duration_ms' => ($song->duration_seconds ?? 0) * 1000,
+            'preview_url' => $song->preview_url,
+            'explicit' => $song->explicit ?? false,
+            'popularity' => $song->popularity ?? 0,
+            'track_number' => $song->track_number ?? 1,
+            'album' => [
+                'id' => $song->album?->spotify_id ?? '',
+                'name' => $song->album?->title ?? 'Album',
+                'images' => $song->album?->cover_url ? [['url' => $song->album->cover_url]] : [],
+                'artists' => $song->album?->artist ? [[
+                    'id' => $song->album->artist->spotify_id,
+                    'name' => $song->album->artist->name,
+                ]] : [],
+            ],
+            'artists' => $song->album?->artist ? [[
+                'id' => $song->album->artist->spotify_id,
+                'name' => $song->album->artist->name,
+            ]] : [],
+        ];
+    }
+
+    private function orderTracksByIds(array $tracks, array $spotifyTrackIds): array
+    {
+        if ($tracks === []) {
+            return [];
+        }
+
+        $tracksById = collect($tracks)
+            ->filter(fn (mixed $track): bool => is_array($track) && isset($track['id']))
+            ->keyBy('id');
+
+        return collect($spotifyTrackIds)
+            ->map(fn (string $spotifyTrackId) => $tracksById->get($spotifyTrackId))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function getLocalArtists(array $spotifyArtistIds): array
+    {
+        if ($spotifyArtistIds === []) {
+            return [];
+        }
+
+        $artistsBySpotifyId = Artist::query()
+            ->whereIn('spotify_id', $spotifyArtistIds)
+            ->get()
+            ->keyBy('spotify_id');
+
+        return collect($spotifyArtistIds)
+            ->map(fn (string $spotifyArtistId) => $artistsBySpotifyId->get($spotifyArtistId))
+            ->filter()
+            ->map(fn (Artist $artist): array => [
+                'id' => $artist->spotify_id,
+                'name' => $artist->name,
+                'genres' => array_filter([$artist->genre]),
+                'popularity' => $artist->popularity ?? 0,
+                'followers' => [
+                    'total' => $artist->followers ?? 0,
+                ],
+                'images' => $artist->image_url ? [['url' => $artist->image_url]] : [],
+            ])
+            ->values()
+            ->all();
     }
 }

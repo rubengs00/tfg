@@ -13,6 +13,7 @@ Route::prefix('auth')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/verify-2fa', [AuthController::class, 'verifyTwoFactor']);
+    Route::post('/resend-2fa', [AuthController::class, 'resendTwoFactor']);
 
     Route::middleware('auth.api')->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);

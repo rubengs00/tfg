@@ -16,6 +16,7 @@ class PlaylistResource extends JsonResource
             'coverUrl' => $this->cover_url,
             'isPublic' => $this->is_public,
             'songsCount' => $this->songs_count ?? $this->songs()->count(),
+            'user' => new UserResource($this->whenLoaded('user')),
             'songs' => SongResource::collection($this->whenLoaded('songs')),
             'createdAt' => $this->created_at?->toIso8601String(),
         ];

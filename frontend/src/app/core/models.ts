@@ -81,6 +81,7 @@ export interface Playlist {
   coverUrl?: string | null;
   isPublic?: boolean;
   songsCount?: number;
+  user?: User;
   createdAt?: string;
 }
 
@@ -102,11 +103,31 @@ export interface AdminTotals {
   activityEvents: number;
 }
 
+export interface AdminHealth {
+  admins: number;
+  standardUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  twoFactorUsers: number;
+  newUsers7d: number;
+  errors24h: number;
+}
+
+export interface AdminActivityPoint {
+  date: string;
+  label: string;
+  total: number;
+}
+
 export interface AdminStatsResponse {
   totals: AdminTotals;
+  health: AdminHealth;
+  activitySeries: AdminActivityPoint[];
   topArtists: LocalArtist[];
   topSongs: LocalSong[];
+  topPlaylists: Playlist[];
   recentActivity: ActivityEvent[];
+  recentErrors: ActivityEvent[];
 }
 
 export interface AdminUserLibrary {
@@ -178,6 +199,18 @@ export interface SessionResponse {
   tokenType?: string;
   expiresAt?: string;
 }
+
+export interface TwoFactorResponse {
+  requiresTwoFactor: true;
+  challengeId: string;
+  expiresAt: string;
+  resendAvailableAt?: string;
+  attemptsRemaining?: number;
+  user?: User;
+  debugCode?: string | null;
+}
+
+export type AuthResponse = SessionResponse | TwoFactorResponse;
 
 /* =====================================================
    HOME & SEARCH (Spotify-first)

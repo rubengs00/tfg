@@ -4,8 +4,8 @@ import { map, switchMap, tap } from 'rxjs';
 
 import { API_BASE_URL } from './api';
 import {
-  PlaylistDetail,
   Playlist,
+  PlaylistDetail,
   SpotifyArtist,
   SpotifyTrack,
   unwrapList,
@@ -25,25 +25,28 @@ export class LibraryService {
   readonly followedArtistIds = this.followedArtistIdsState.asReadonly();
   readonly followedArtistsStateView = this.followedArtistsState.asReadonly();
 
-  /* =====================================================
-     FAVORITES
-  ===================================================== */
-
   favorites() {
-    return this.http
-      .get<{ tracks: SpotifyTrack[] }>(`${API_BASE_URL}/me/favorites`)
-      .pipe(
-        map((response) => response.tracks ?? []),
-        tap((tracks) => this.setFavoriteTracks(tracks))
-      );
+    return this.http.get<{ tracks: SpotifyTrack[] }>(`${API_BASE_URL}/me/favorites`).pipe(
+      map((response) => response.tracks ?? []),
+      tap((tracks) => this.setFavoriteTracks(tracks)),
+    );
   }
 
-  addFavorite(spotifyTrackId: string) {
-    // Actualización optimista: agregar a favoritos localmente
-    this.favoriteTrackIdsState.update((ids) => {
-      if (ids.includes(spotifyTrackId)) return ids;
-      return [...ids, spotifyTrackId];
-    });
+  addFavorite(spotifyTrackId: string, track?: SpotifyTrack) {
+    const previousIds = this.favoriteTrackIdsState();
+    const previousTracks = this.favoriteTracksState();
+
+    this.favoriteTrackIdsState.update((ids) => [
+      spotifyTrackId,
+      ...ids.filter((id) => id !== spotifyTrackId),
+    ]);
+
+    if (track) {
+      this.favoriteTracksState.update((tracks) => [
+        track,
+        ...tracks.filter((item) => item.id !== spotifyTrackId),
+      ]);
+    }
 
     return this.http
       .post(`${API_BASE_URL}/me/favorites`, {
@@ -51,22 +54,21 @@ export class LibraryService {
       })
       .pipe(
         switchMap(() => this.favorites()),
-        // Si falla, revertir el cambio
         tap({
           error: () => {
-            this.favoriteTrackIdsState.update((ids) =>
-              ids.filter((id) => id !== spotifyTrackId)
-            );
+            this.favoriteTrackIdsState.set(previousIds);
+            this.favoriteTracksState.set(previousTracks);
           },
-        })
+        }),
       );
   }
 
   removeFavorite(spotifyTrackId: string) {
-    // Actualización optimista: remover de favoritos localmente
-    this.favoriteTrackIdsState.update((ids) =>
-      ids.filter((id) => id !== spotifyTrackId)
-    );
+    const previousIds = this.favoriteTrackIdsState();
+    const previousTracks = this.favoriteTracksState();
+
+    this.favoriteTrackIdsState.update((ids) => ids.filter((id) => id !== spotifyTrackId));
+    this.favoriteTracksState.update((tracks) => tracks.filter((track) => track.id !== spotifyTrackId));
 
     return this.http
       .delete(`${API_BASE_URL}/me/favorites`, {
@@ -74,32 +76,23 @@ export class LibraryService {
       })
       .pipe(
         switchMap(() => this.favorites()),
-        // Si falla, revertir el cambio
         tap({
           error: () => {
-            this.favoriteTrackIdsState.update((ids) => [...ids, spotifyTrackId]);
+            this.favoriteTrackIdsState.set(previousIds);
+            this.favoriteTracksState.set(previousTracks);
           },
-        })
+        }),
       );
   }
 
-  /* =====================================================
-     FOLLOWED ARTISTS
-  ===================================================== */
-
   followedArtists() {
-    return this.http
-      .get<{ artists: SpotifyArtist[] }>(
-        `${API_BASE_URL}/me/followed-artists`
-      )
-      .pipe(
-        map((response) => response.artists ?? []),
-        tap((artists) => this.setFollowedArtists(artists))
-      );
+    return this.http.get<{ artists: SpotifyArtist[] }>(`${API_BASE_URL}/me/followed-artists`).pipe(
+      map((response) => response.artists ?? []),
+      tap((artists) => this.setFollowedArtists(artists)),
+    );
   }
 
   followArtist(spotifyArtistId: string) {
-    // Actualización optimista: agregar a artistas seguidos localmente
     this.followedArtistIdsState.update((ids) => {
       if (ids.includes(spotifyArtistId)) return ids;
       return [...ids, spotifyArtistId];
@@ -111,22 +104,18 @@ export class LibraryService {
       })
       .pipe(
         switchMap(() => this.followedArtists()),
-        // Si falla, revertir el cambio
         tap({
           error: () => {
             this.followedArtistIdsState.update((ids) =>
-              ids.filter((id) => id !== spotifyArtistId)
+              ids.filter((id) => id !== spotifyArtistId),
             );
           },
-        })
+        }),
       );
   }
 
   unfollowArtist(spotifyArtistId: string) {
-    // Actualización optimista: remover de artistas seguidos localmente
-    this.followedArtistIdsState.update((ids) =>
-      ids.filter((id) => id !== spotifyArtistId)
-    );
+    this.followedArtistIdsState.update((ids) => ids.filter((id) => id !== spotifyArtistId));
 
     return this.http
       .delete(`${API_BASE_URL}/me/followed-artists`, {
@@ -134,18 +123,13 @@ export class LibraryService {
       })
       .pipe(
         switchMap(() => this.followedArtists()),
-        // Si falla, revertir el cambio
         tap({
           error: () => {
             this.followedArtistIdsState.update((ids) => [...ids, spotifyArtistId]);
           },
-        })
+        }),
       );
   }
-
-  /* =====================================================
-     PLAYLISTS
-  ===================================================== */
 
   playlists() {
     return this.http
@@ -154,13 +138,10 @@ export class LibraryService {
   }
 
   createPlaylist(name: string, description = '') {
-    return this.http.post<{ playlist: Playlist }>(
-      `${API_BASE_URL}/me/playlists`,
-      {
-        name,
-        description,
-      }
-    );
+    return this.http.post<{ playlist: Playlist }>(`${API_BASE_URL}/me/playlists`, {
+      name,
+      description,
+    });
   }
 
   playlist(id: number) {
@@ -168,31 +149,31 @@ export class LibraryService {
   }
 
   addTrackToPlaylist(playlistId: number, spotifyTrackId: string) {
-    return this.http.post(
+    return this.http.post<{ message: string; playlist: Playlist }>(
       `${API_BASE_URL}/me/playlists/${playlistId}/tracks`,
       {
         spotifyTrackId,
-      }
+      },
     );
   }
 
   removeTrackFromPlaylist(playlistId: number, spotifyTrackId: string) {
-    return this.http.delete(
+    return this.http.delete<{ message: string; playlist: Playlist }>(
       `${API_BASE_URL}/me/playlists/${playlistId}/tracks`,
       {
         body: { spotifyTrackId },
-      }
+      },
     );
   }
 
   deletePlaylist(playlistId: number) {
-    return this.http.delete(
-      `${API_BASE_URL}/me/playlists/${playlistId}`
-    );
+    return this.http.delete(`${API_BASE_URL}/me/playlists/${playlistId}`);
   }
 
   updatePlaylist(playlistId: number, formData: FormData) {
-    formData.append('_method', 'PATCH');
+    if (!formData.has('_method')) {
+      formData.append('_method', 'PATCH');
+    }
 
     return this.http
       .post<{ playlist: Playlist }>(`${API_BASE_URL}/me/playlists/${playlistId}`, formData)

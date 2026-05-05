@@ -1,0 +1,11 @@
+﻿
+.page-hero--album {
+  align-items: end;
+}
+
+@media (max-width: 760px) {
+  .page-hero--album {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+}

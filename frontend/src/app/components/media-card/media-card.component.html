@@ -1,0 +1,16 @@
+﻿<a class="media-card" [routerLink]="route()" [class.media-card--round]="round()">
+  <div class="media-card__art" [class.media-card__art--round]="round()">
+    @if (imageUrl()) {
+      <img
+        [src]="resolvedImageUrl()"
+        [alt]="title()"
+        loading="lazy"
+      />
+    } @else {
+      <lucide-icon [img]="fallbackIcon()" [size]="32"></lucide-icon>
+    }
+  </div>
+  <strong>{{ title() }}</strong>
+  <span>{{ subtitle() }}</span>
+</a>
+

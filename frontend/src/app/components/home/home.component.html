@@ -1,0 +1,62 @@
+﻿<section class="page-hero page-hero--compact home-hero">
+  <div class="home-hero__copy">
+    <span class="eyebrow">MusicHub</span>
+    <h1>{{ title() }}</h1>
+  </div>
+  <p>{{ subtitle() }}</p>
+</section>
+
+@if (loading()) {
+  <div class="empty-state home-loading">
+    <span class="home-loading__pulse"></span>
+    <span>Cargando catalogo...</span>
+  </div>
+} @else {
+  <section class="content-section">
+    <div class="section-heading">
+      <h2>Artistas populares</h2>
+    </div>
+
+    <div class="media-grid">
+      @for (artist of data().artists; track artist.id) {
+        <app-media-card
+          [title]="artist.name"
+          [subtitle]="artist.genres?.[0] ?? 'Artista'"
+          [imageUrl]="artist.images?.[0]?.url ?? null"
+          [route]="['/artists', artist.id]"
+          kind="artist"
+          [round]="true"
+        />
+      }
+    </div>
+  </section>
+
+  <section class="content-section">
+    <div class="section-heading">
+      <h2>Albumes populares</h2>
+    </div>
+    <div class="media-grid">
+      @for (album of data().albums; track album.id) {
+        <app-media-card
+          [title]="album.name"
+          [subtitle]="album.artists?.[0]?.name ?? 'Album'"
+          [imageUrl]="album.images?.[0]?.url ?? null"
+          [route]="['/albums', album.id]"
+          kind="album"
+        />
+      }
+    </div>
+  </section>
+
+  <section class="content-section">
+    <div class="section-heading">
+      <h2>Canciones destacadas</h2>
+    </div>
+    <div class="song-list">
+      @for (track of data().tracks; track track.id; let i = $index) {
+        <app-song-row [track]="track" [index]="i + 1" />
+      }
+    </div>
+  </section>
+}
+
