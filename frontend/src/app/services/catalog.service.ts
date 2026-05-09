@@ -37,6 +37,7 @@ export class CatalogService {
     return this.http.get<{
       artist: SpotifyArtist | null;
       albums: SpotifyAlbum[];
+      albumsRetryAfter?: number | null;
     }>(`${API_BASE_URL}/artists/${id}`);
   }
 

@@ -38,7 +38,9 @@
       <span>{{ albums().length }} publicados</span>
     </div>
 
-    @if (!albums().length) {
+    @if (albumsNotice()) {
+      <div class="empty-state artist-albums__notice">{{ albumsNotice() }}</div>
+    } @else if (!albums().length) {
       <div class="empty-state">No hemos encontrado albumes para este artista.</div>
     } @else {
       <div class="media-grid">

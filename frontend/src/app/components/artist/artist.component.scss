@@ -98,6 +98,12 @@
   margin-top: 28px;
 }
 
+.artist-albums__notice {
+  border-color: rgba(250, 204, 21, 0.34);
+  color: #fde68a;
+  background: rgba(250, 204, 21, 0.08);
+}
+
 @media (max-width: 760px) {
   .artist {
     grid-template-columns: 1fr;

@@ -1,4 +1,5 @@
 import { DecimalPipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -28,6 +29,7 @@ export class ArtistComponent {
   readonly albums = signal<SpotifyAlbum[]>([]);
   readonly isFollowed = signal(false);
   readonly error = signal('');
+  readonly albumsNotice = signal('');
 
   constructor() {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
@@ -35,6 +37,7 @@ export class ArtistComponent {
       if (!id) return;
 
       this.error.set('');
+      this.albumsNotice.set('');
       this.artist.set(null);
       this.albums.set([]);
 
@@ -50,12 +53,14 @@ export class ArtistComponent {
             ...response.artist,
             followers: { total: totalFollowers },
           });
-          this.albums.set(response.albums ?? []);
+          const albums = response.albums ?? [];
+          this.albums.set(albums);
+          this.albumsNotice.set(this.albumRateLimitMessage(response.albumsRetryAfter, albums.length));
 
           const followed = this.library.followedArtistIds().includes(response.artist.id);
           this.isFollowed.set(followed);
         },
-        error: () => this.error.set('No se ha podido cargar el artista.'),
+        error: (error: unknown) => this.error.set(this.artistErrorMessage(error)),
       });
     });
   }
@@ -92,5 +97,42 @@ export class ArtistComponent {
         });
       },
     });
+  }
+
+  private albumRateLimitMessage(retryAfter: number | null | undefined, albumCount: number): string {
+    if (!retryAfter || albumCount > 0) return '';
+
+    return `Ha habido demasiadas peticiones a Spotify. Vuelve a intentarlo en ${this.formatWait(retryAfter)}.`;
+  }
+
+  private artistErrorMessage(error: unknown): string {
+    const retryAfter =
+      error instanceof HttpErrorResponse ? Number(error.error?.artistRetryAfter ?? 0) : 0;
+
+    if (retryAfter > 0) {
+      return `Ha habido demasiadas peticiones a Spotify. Vuelve a intentarlo en ${this.formatWait(retryAfter)}.`;
+    }
+
+    return 'No se ha podido cargar el artista.';
+  }
+
+  private formatWait(seconds: number): string {
+    const safeSeconds = Math.max(1, Math.ceil(seconds));
+    const hours = Math.floor(safeSeconds / 3600);
+    const minutes = Math.floor((safeSeconds % 3600) / 60);
+
+    if (hours > 0 && minutes > 0) {
+      return `${hours} h ${minutes} min`;
+    }
+
+    if (hours > 0) {
+      return `${hours} h`;
+    }
+
+    if (minutes > 0) {
+      return `${minutes} min`;
+    }
+
+    return `${safeSeconds} s`;
   }
 }

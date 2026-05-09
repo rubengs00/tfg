@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Album;
 use App\Models\Artist;
 use App\Models\Song;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -63,21 +64,23 @@ class SpotifyCatalogService
             ];
         }
 
-        $baseParams = [
-            'q' => $query,
-            'limit' => 10,
-            'market' => $this->market(),
-        ];
+        $query = trim($query);
+        $cacheKey = 'spotify:search:' . md5($this->market() . '|' . $query);
 
-        $artistResponse = $this->spotifyGet('/v1/search', [...$baseParams, 'type' => 'artist']);
-        $albumResponse = $this->spotifyGet('/v1/search', [...$baseParams, 'type' => 'album']);
-        $trackResponse = $this->spotifyGet('/v1/search', [...$baseParams, 'type' => 'track']);
+        return Cache::remember($cacheKey, 900, function () use ($query): array {
+            $response = $this->spotifyGet('/v1/search', [
+                'q' => $query,
+                'type' => 'artist,album,track',
+                'limit' => 10,
+                'market' => $this->market(),
+            ]);
 
-        return [
-            'artists' => $artistResponse['artists']['items'] ?? [],
-            'albums' => $albumResponse['albums']['items'] ?? [],
-            'tracks' => $trackResponse['tracks']['items'] ?? [],
-        ];
+            return [
+                'artists' => $response['artists']['items'] ?? [],
+                'albums' => $response['albums']['items'] ?? [],
+                'tracks' => $response['tracks']['items'] ?? [],
+            ];
+        });
     }
 
     public function getArtist(string $spotifyArtistId): array
@@ -129,15 +132,48 @@ class SpotifyCatalogService
             return [];
         }
 
-        return Cache::remember("spotify:artist:{$spotifyArtistId}:albums:{$limit}", 3600, function () use ($spotifyArtistId, $limit): array {
-            $response = $this->spotifyGet("/v1/artists/{$spotifyArtistId}/albums", [
-                'include_groups' => 'album,single',
-                'limit' => max(1, min($limit, 10)),
-                'market' => $this->market(),
-            ]);
+        $limit = max(1, min($limit, 10));
+        $cacheKey = "spotify:artist:{$spotifyArtistId}:albums:{$limit}";
+        $rateLimitKey = "{$cacheKey}:rate_limited";
+
+        if ($this->getArtistAlbumsRetryAfter($spotifyArtistId, $limit) !== null) {
+            return [];
+        }
+
+        return Cache::remember($cacheKey, 3600, function () use ($spotifyArtistId, $limit, $rateLimitKey): array {
+            try {
+                $response = $this->spotifyGet("/v1/artists/{$spotifyArtistId}/albums", [
+                    'include_groups' => 'album,single',
+                    'limit' => $limit,
+                    'market' => $this->market(),
+                ]);
+            } catch (RequestException $exception) {
+                if ($exception->response->status() === 429) {
+                    $retryAfter = max(1, (int) ($exception->response->header('Retry-After') ?? 60));
+                    $retryAt = now()->addSeconds($retryAfter);
+
+                    Cache::put($rateLimitKey, $retryAt->timestamp, $retryAt);
+                }
+
+                throw $exception;
+            }
 
             return $response['items'] ?? [];
         });
+    }
+
+    public function getArtistAlbumsRetryAfter(string $spotifyArtistId, int $limit = 10): ?int
+    {
+        $limit = max(1, min($limit, 10));
+        $retryAt = Cache::get("spotify:artist:{$spotifyArtistId}:albums:{$limit}:rate_limited");
+
+        if (! is_numeric($retryAt)) {
+            return null;
+        }
+
+        $seconds = ((int) $retryAt) - now()->timestamp;
+
+        return $seconds > 0 ? $seconds : null;
     }
 
     public function getAlbum(string $spotifyAlbumId): array

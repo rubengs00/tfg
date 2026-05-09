@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Artist as LocalArtist;
 use App\Models\Album as LocalAlbum;
 use App\Services\SpotifyCatalogService;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -90,22 +91,43 @@ class CatalogController extends Controller
     {
         try {
             $artist = $this->spotify->getArtist($spotifyId);
-            $albums = $this->spotify->getArtistAlbums($spotifyId);
         } catch (\Throwable $exception) {
+            $retryAfter = $this->retryAfter($exception);
+
             return response()->json([
                 'artist' => null,
                 'albums' => [],
-                'message' => 'No se ha podido cargar el artista desde Spotify.',
+                'message' => $retryAfter !== null
+                    ? 'Ha habido demasiadas peticiones a Spotify.'
+                    : 'No se ha podido cargar el artista desde Spotify.',
+                'artistRetryAfter' => $retryAfter,
                 'spotifyEnabled' => $this->spotify->enabled(),
-            ]);
+            ], $retryAfter !== null ? 429 : 200);
         }
 
+        try {
+            $albums = $this->spotify->getArtistAlbums($spotifyId);
+        } catch (\Throwable $exception) {
+            $albums = [];
+        }
+
+        $albumsRetryAfter = $this->spotify->getArtistAlbumsRetryAfter($spotifyId);
         $artist = $this->mergeLocalFollowers($spotifyId, $artist);
 
         return response()->json([
             'artist' => $artist ?: null,
             'albums' => $albums,
+            'albumsRetryAfter' => $albumsRetryAfter,
         ]);
+    }
+
+    private function retryAfter(\Throwable $exception): ?int
+    {
+        if (! $exception instanceof RequestException || $exception->response->status() !== 429) {
+            return null;
+        }
+
+        return max(1, (int) ($exception->response->header('Retry-After') ?? 60));
     }
 
     public function album(string $spotifyId): JsonResponse

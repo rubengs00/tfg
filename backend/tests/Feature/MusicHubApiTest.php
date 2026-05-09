@@ -295,6 +295,124 @@ class MusicHubApiTest extends TestCase
             ->assertJsonPath('artist.followers.total', 123457);
     }
 
+    public function test_artist_detail_still_returns_spotify_artist_when_albums_request_is_rate_limited(): void
+    {
+        $now = now();
+
+        $this->travelTo($now);
+
+        config([
+            'services.spotify.client_id' => 'spotify-test-client',
+            'services.spotify.client_secret' => 'spotify-test-secret',
+        ]);
+
+        $albumRequests = 0;
+
+        Http::fake(function ($request) use (&$albumRequests) {
+            $url = $request->url();
+
+            if ($url === 'https://accounts.spotify.com/api/token') {
+                return Http::response([
+                    'access_token' => 'spotify-token',
+                    'token_type' => 'Bearer',
+                    'expires_in' => 3600,
+                ]);
+            }
+
+            if (str_contains($url, '/v1/artists/artist1234567890123456/albums')) {
+                $albumRequests++;
+
+                if ($albumRequests === 1) {
+                    return Http::response([
+                        'error' => [
+                            'status' => 429,
+                            'message' => 'Too many requests',
+                        ],
+                    ], 429, ['Retry-After' => '60']);
+                }
+
+                return Http::response([
+                    'items' => [[
+                        'id' => 'album12345678901234567',
+                        'name' => 'Motomami',
+                        'release_date' => '2022-03-18',
+                        'total_tracks' => 16,
+                        'images' => [['url' => 'https://example.com/album.jpg']],
+                        'artists' => [[
+                            'id' => 'artist1234567890123456',
+                            'name' => 'Rosalia',
+                        ]],
+                    ]],
+                ]);
+            }
+
+            if (str_contains($url, '/v1/artists/artist1234567890123456')) {
+                return Http::response([
+                    'id' => 'artist1234567890123456',
+                    'name' => 'Rosalia',
+                    'genres' => ['pop'],
+                    'followers' => ['total' => 123456],
+                    'images' => [['url' => 'https://example.com/artist.jpg']],
+                    'popularity' => 92,
+                ]);
+            }
+
+            return Http::response([], 404);
+        });
+
+        $this->getJson('/api/artists/artist1234567890123456')
+            ->assertOk()
+            ->assertJsonPath('artist.id', 'artist1234567890123456')
+            ->assertJsonPath('artist.name', 'Rosalia')
+            ->assertJsonPath('albums', [])
+            ->assertJsonPath('albumsRetryAfter', 60);
+
+        $this->getJson('/api/artists/artist1234567890123456')
+            ->assertOk()
+            ->assertJsonPath('artist.name', 'Rosalia')
+            ->assertJsonPath('albums', [])
+            ->assertJsonPath('albumsRetryAfter', 60);
+
+        $this->assertSame(1, $albumRequests);
+
+        $this->travelTo($now->copy()->addSeconds(61));
+
+        $this->getJson('/api/artists/artist1234567890123456')
+            ->assertOk()
+            ->assertJsonPath('artist.name', 'Rosalia')
+            ->assertJsonPath('albums.0.id', 'album12345678901234567')
+            ->assertJsonPath('albumsRetryAfter', null);
+
+        $this->assertSame(2, $albumRequests);
+    }
+
+    public function test_artist_detail_reports_retry_after_when_artist_request_is_rate_limited(): void
+    {
+        config([
+            'services.spotify.client_id' => 'spotify-test-client',
+            'services.spotify.client_secret' => 'spotify-test-secret',
+        ]);
+
+        Http::fake([
+            'https://accounts.spotify.com/api/token' => Http::response([
+                'access_token' => 'spotify-token',
+                'token_type' => 'Bearer',
+                'expires_in' => 3600,
+            ]),
+            'https://api.spotify.com/v1/artists/artist1234567890123456*' => Http::response(
+                'Too many requests',
+                429,
+                ['Retry-After' => '45']
+            ),
+        ]);
+
+        $this->getJson('/api/artists/artist1234567890123456')
+            ->assertStatus(429)
+            ->assertJsonPath('artist', null)
+            ->assertJsonPath('artistRetryAfter', 45)
+            ->assertJsonPath('message', 'Ha habido demasiadas peticiones a Spotify.');
+    }
+
     public function test_spotify_search_returns_live_remote_ids(): void
     {
         config([
