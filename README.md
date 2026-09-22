@@ -4,6 +4,9 @@ MusicHub es una aplicacion web musical inspirada en Spotify. Permite explorar ar
 
 El proyecto combina un frontend Angular con una API REST Laravel. El backend gestiona autenticacion con token, 2FA por correo configurable, persistencia en SQLite, biblioteca de usuario, eventos de actividad y panel de administracion.
 
+# IP PROYECTO DESPLEGADO
+
+http://213.32.19.95/
 ## Tecnologias
 
 - Frontend: Angular 21, TypeScript, SCSS.
